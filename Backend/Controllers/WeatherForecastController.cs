@@ -1,3 +1,7 @@
+using Backend.Commands.Weather;
+using Backend.Models.DTOs;
+using Backend.Queries.Weather;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers;
@@ -6,32 +10,35 @@ namespace Backend.Controllers;
 [Route("api/[controller]")]
 public class WeatherForecastController : ControllerBase
 {
-    private static readonly string[] Summaries = new[]
-    {
-        "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-    };
+    private readonly IMediator _mediator;
 
-    private readonly ILogger<WeatherForecastController> _logger;
-
-    public WeatherForecastController(ILogger<WeatherForecastController> logger)
+    public WeatherForecastController(IMediator mediator)
     {
-        _logger = logger;
+        _mediator = mediator;
     }
 
     /// <summary>
-    /// Obtiene el pronóstico del clima
+    /// Obtiene todos los pronósticos del clima
     /// </summary>
+    /// <param name="fromDate">Fecha desde</param>
+    /// <param name="toDate">Fecha hasta</param>
+    /// <param name="summary">Filtrar por resumen</param>
     /// <returns>Lista de pronósticos del clima</returns>
     [HttpGet]
-    public IEnumerable<WeatherForecast> Get()
+    public async Task<ActionResult<List<WeatherForecastDto>>> GetAllWeatherForecasts(
+        [FromQuery] DateOnly? fromDate = null,
+        [FromQuery] DateOnly? toDate = null,
+        [FromQuery] string? summary = null)
     {
-        return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+        var query = new GetAllWeatherForecastsQuery
         {
-            Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            TemperatureC = Random.Shared.Next(-20, 55),
-            Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-        })
-        .ToArray();
+            FromDate = fromDate,
+            ToDate = toDate,
+            Summary = summary
+        };
+
+        var forecasts = await _mediator.Send(query);
+        return Ok(forecasts);
     }
 
     /// <summary>
@@ -40,28 +47,35 @@ public class WeatherForecastController : ControllerBase
     /// <param name="id">ID del pronóstico</param>
     /// <returns>Pronóstico específico</returns>
     [HttpGet("{id}")]
-    public ActionResult<WeatherForecast> GetById(int id)
+    public async Task<ActionResult<WeatherForecastDto>> GetWeatherForecastById(int id)
     {
-        if (id <= 0)
-        {
-            return BadRequest("El ID debe ser mayor que 0");
-        }
+        var query = new GetWeatherForecastByIdQuery { Id = id };
+        var forecast = await _mediator.Send(query);
 
-        var forecast = new WeatherForecast
+        if (forecast == null)
         {
-            Date = DateOnly.FromDateTime(DateTime.Now.AddDays(id)),
-            TemperatureC = Random.Shared.Next(-20, 55),
-            Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-        };
+            return NotFound($"Pronóstico con ID {id} no encontrado.");
+        }
 
         return Ok(forecast);
     }
-}
 
-public record WeatherForecast
-{
-    public DateOnly Date { get; set; }
-    public int TemperatureC { get; set; }
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-    public string? Summary { get; set; }
+    /// <summary>
+    /// Crea un nuevo pronóstico del clima
+    /// </summary>
+    /// <param name="createForecastDto">Datos del pronóstico a crear</param>
+    /// <returns>Pronóstico creado</returns>
+    [HttpPost]
+    public async Task<ActionResult<WeatherForecastDto>> CreateWeatherForecast([FromBody] CreateWeatherForecastDto createForecastDto)
+    {
+        var command = new CreateWeatherForecastCommand
+        {
+            Date = createForecastDto.Date,
+            TemperatureC = createForecastDto.TemperatureC,
+            Summary = createForecastDto.Summary
+        };
+
+        var forecast = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetWeatherForecastById), new { id = forecast.Id }, forecast);
+    }
 }

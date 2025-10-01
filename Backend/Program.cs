@@ -1,3 +1,6 @@
+using Backend.Infrastructure.Context;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -5,6 +8,17 @@ builder.Services.AddRazorPages();
 
 // Add API services
 builder.Services.AddControllers();
+
+// Add CQRS services
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+builder.Services.AddAutoMapper(typeof(Program));
+
+// Add Entity Framework
+builder.Services.AddDbContext<Backend.Infrastructure.Context.ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add repositories
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IUserRepository, Backend.Infrastructure.Repositories.UserRepository>();
 
 // Add Swagger/OpenAPI services
 builder.Services.AddEndpointsApiExplorer();
