@@ -23,6 +23,7 @@ builder.Services.AddDbContext<Backend.Infrastructure.Context.ApplicationDbContex
 
 // Add repositories
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IUserRepository, Backend.Infrastructure.Repositories.UserRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IRoleRepository, Backend.Infrastructure.Repositories.RoleRepository>();
 
 // Add Swagger/OpenAPI services
 builder.Services.AddEndpointsApiExplorer();

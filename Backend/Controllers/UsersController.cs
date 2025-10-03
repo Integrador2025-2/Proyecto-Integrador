@@ -135,6 +135,27 @@ public class UsersController : ControllerBase
             return NotFound(ex.Message);
         }
     }
+
+    /// <summary>
+    /// Remueve el rol de un usuario (asigna rol Usuario por defecto)
+    /// </summary>
+    /// <param name="id">ID del usuario</param>
+    /// <returns>Usuario actualizado</returns>
+    [HttpPost("{id}/remove-role")]
+    public async Task<ActionResult<UserDto>> RemoveRoleFromUser(int id)
+    {
+        var command = new RemoveRoleFromUserCommand { UserId = id };
+
+        try
+        {
+            var user = await _mediator.Send(command);
+            return Ok(user);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
 }
 
 
