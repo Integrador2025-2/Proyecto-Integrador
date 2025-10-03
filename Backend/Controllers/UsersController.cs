@@ -69,7 +69,8 @@ public class UsersController : ControllerBase
         {
             FirstName = createUserDto.FirstName,
             LastName = createUserDto.LastName,
-            Email = createUserDto.Email
+            Email = createUserDto.Email,
+            Password = createUserDto.Password
         };
 
         var user = await _mediator.Send(command);
@@ -135,6 +136,7 @@ public class UsersController : ControllerBase
         }
     }
 }
+
 
 
 

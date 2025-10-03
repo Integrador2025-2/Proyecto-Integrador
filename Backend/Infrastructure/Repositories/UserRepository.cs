@@ -16,12 +16,14 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetByIdAsync(int id)
     {
         return await _context.Users
+            .Include(u => u.Role)
             .FirstOrDefaultAsync(u => u.Id == id);
     }
 
     public async Task<List<User>> GetAllAsync()
     {
         return await _context.Users
+            .Include(u => u.Role)
             .OrderBy(u => u.LastName)
             .ThenBy(u => u.FirstName)
             .ToListAsync();
@@ -45,6 +47,7 @@ public class UserRepository : IUserRepository
         }
 
         return await query
+            .Include(u => u.Role)
             .OrderBy(u => u.LastName)
             .ThenBy(u => u.FirstName)
             .ToListAsync();

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "aQr7gORFp2E=",
+  "dgSpecHash": "XkdsQTvP7l8=",
   "success": true,
   "projectFilePath": "C:\\Users\\FabiCode\\Documents\\Integrador\\proyectoIntegrador\\Backend\\Backend.csproj",
   "expectedPackageFiles": [
@@ -8,6 +8,7 @@
     "C:\\Users\\FabiCode\\.nuget\\packages\\automapper.extensions.microsoft.dependencyinjection\\12.0.1\\automapper.extensions.microsoft.dependencyinjection.12.0.1.nupkg.sha512",
     "C:\\Users\\FabiCode\\.nuget\\packages\\azure.core\\1.25.0\\azure.core.1.25.0.nupkg.sha512",
     "C:\\Users\\FabiCode\\.nuget\\packages\\azure.identity\\1.7.0\\azure.identity.1.7.0.nupkg.sha512",
+    "C:\\Users\\FabiCode\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512",
     "C:\\Users\\FabiCode\\.nuget\\packages\\fluentvalidation\\11.8.1\\fluentvalidation.11.8.1.nupkg.sha512",
     "C:\\Users\\FabiCode\\.nuget\\packages\\fluentvalidation.dependencyinjectionextensions\\11.8.1\\fluentvalidation.dependencyinjectionextensions.11.8.1.nupkg.sha512",
     "C:\\Users\\FabiCode\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",

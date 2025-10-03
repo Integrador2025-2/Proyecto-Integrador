@@ -8,12 +8,21 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
+        // Role mappings
+        CreateMap<Role, RoleDto>();
+        
         // User mappings
         CreateMap<User, UserDto>()
-            .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.FullName));
+            .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.FullName))
+            .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role));
         
-        CreateMap<CreateUserDto, User>();
-        CreateMap<UpdateUserDto, User>();
+        CreateMap<CreateUserDto, User>()
+            .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
+            .ForMember(dest => dest.RoleId, opt => opt.MapFrom(src => 2)); // Por defecto Usuario
+        
+        CreateMap<UpdateUserDto, User>()
+            .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore());
 
         // WeatherForecast mappings
         CreateMap<WeatherForecast, WeatherForecastDto>();
@@ -21,6 +30,7 @@ public class MappingProfile : Profile
         CreateMap<UpdateWeatherForecastDto, WeatherForecast>();
     }
 }
+
 
 
 

@@ -10,11 +10,32 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<User> Users { get; set; }
+    public DbSet<Role> Roles { get; set; }
     public DbSet<WeatherForecast> WeatherForecasts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Configuración de Role
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasMaxLength(50);
+            entity.Property(e => e.Description)
+                .HasMaxLength(255);
+            entity.Property(e => e.Permissions)
+                .HasMaxLength(1000);
+            entity.Property(e => e.CreatedAt)
+                .IsRequired();
+            entity.Property(e => e.IsActive)
+                .IsRequired()
+                .HasDefaultValue(true);
+            entity.HasIndex(e => e.Name)
+                .IsUnique();
+        });
 
         // Configuración de User
         modelBuilder.Entity<User>(entity =>
@@ -29,6 +50,9 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Email)
                 .IsRequired()
                 .HasMaxLength(255);
+            entity.Property(e => e.PasswordHash)
+                .IsRequired()
+                .HasMaxLength(255);
             entity.HasIndex(e => e.Email)
                 .IsUnique();
             entity.Property(e => e.CreatedAt)
@@ -36,6 +60,12 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.IsActive)
                 .IsRequired()
                 .HasDefaultValue(true);
+            
+            // Relación con Role
+            entity.HasOne(e => e.Role)
+                .WithMany(r => r.Users)
+                .HasForeignKey(e => e.RoleId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Configuración de WeatherForecast
@@ -58,7 +88,29 @@ public class ApplicationDbContext : DbContext
 
     private void SeedData(ModelBuilder modelBuilder)
     {
-        // Usuarios de prueba
+        // Roles por defecto
+        modelBuilder.Entity<Role>().HasData(
+            new Role
+            {
+                Id = 1,
+                Name = "Administrador",
+                Description = "Rol con permisos completos del sistema",
+                Permissions = "[\"users.create\", \"users.read\", \"users.update\", \"users.delete\", \"weather.create\", \"weather.read\", \"weather.update\", \"weather.delete\"]",
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true
+            },
+            new Role
+            {
+                Id = 2,
+                Name = "Usuario",
+                Description = "Rol con permisos básicos del sistema",
+                Permissions = "[\"users.read\", \"weather.read\"]",
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true
+            }
+        );
+
+        // Usuarios de prueba (contraseñas: "Admin123!" y "User123!")
         modelBuilder.Entity<User>().HasData(
             new User
             {
@@ -66,6 +118,8 @@ public class ApplicationDbContext : DbContext
                 FirstName = "Juan",
                 LastName = "Pérez",
                 Email = "juan.perez@email.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
+                RoleId = 1, // Administrador
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
             },
@@ -75,6 +129,8 @@ public class ApplicationDbContext : DbContext
                 FirstName = "María",
                 LastName = "González",
                 Email = "maria.gonzalez@email.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("User123!"),
+                RoleId = 2, // Usuario
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
             },
@@ -84,6 +140,8 @@ public class ApplicationDbContext : DbContext
                 FirstName = "Carlos",
                 LastName = "López",
                 Email = "carlos.lopez@email.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("User123!"),
+                RoleId = 2, // Usuario
                 CreatedAt = DateTime.UtcNow,
                 IsActive = false
             }
@@ -109,6 +167,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<WeatherForecast>().HasData(weatherForecasts.ToArray());
     }
 }
+
 
 
 

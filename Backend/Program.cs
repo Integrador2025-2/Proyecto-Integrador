@@ -15,7 +15,11 @@ builder.Services.AddAutoMapper(typeof(Program));
 
 // Add Entity Framework
 builder.Services.AddDbContext<Backend.Infrastructure.Context.ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), 
+        sqlOptions => sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null)));
 
 // Add repositories
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IUserRepository, Backend.Infrastructure.Repositories.UserRepository>();

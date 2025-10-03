@@ -24,6 +24,8 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, Backe
             FirstName = request.FirstName,
             LastName = request.LastName,
             Email = request.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            RoleId = 2, // Por defecto Usuario
             IsActive = true
         };
 
@@ -31,6 +33,7 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, Backe
         return _mapper.Map<Backend.Models.DTOs.UserDto>(createdUser);
     }
 }
+
 
 
 

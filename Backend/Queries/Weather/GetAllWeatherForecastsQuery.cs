@@ -12,3 +12,5 @@ public class GetAllWeatherForecastsQuery : IRequest<List<WeatherForecastDto>>
 
 
 
+
+
