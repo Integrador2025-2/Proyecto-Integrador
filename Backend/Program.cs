@@ -28,6 +28,13 @@ builder.Services.AddScoped<Backend.Infrastructure.Repositories.IRoleRepository, 
 // Add services
 builder.Services.AddScoped<Backend.Services.IAuthService, Backend.Services.AuthService>();
 
+// Add Redis connection multiplexer
+builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
+    StackExchange.Redis.ConnectionMultiplexer.Connect(
+        builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379"
+    )
+);
+
 // Add Swagger/OpenAPI services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

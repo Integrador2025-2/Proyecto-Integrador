@@ -149,3 +149,5 @@ C:\Users\FabiCode\Documents\Integrador\proyectoIntegrador\Backend\obj\Debug\net8
 C:\Users\FabiCode\Documents\Integrador\proyectoIntegrador\Backend\obj\Debug\net8.0\Backend.pdb
 C:\Users\FabiCode\Documents\Integrador\proyectoIntegrador\Backend\obj\Debug\net8.0\Backend.genruntimeconfig.cache
 C:\Users\FabiCode\Documents\Integrador\proyectoIntegrador\Backend\obj\Debug\net8.0\ref\Backend.dll
+C:\Users\FabiCode\Documents\Integrador\proyectoIntegrador\Backend\bin\Debug\net8.0\Pipelines.Sockets.Unofficial.dll
+C:\Users\FabiCode\Documents\Integrador\proyectoIntegrador\Backend\bin\Debug\net8.0\StackExchange.Redis.dll

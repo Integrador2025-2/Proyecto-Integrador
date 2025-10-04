@@ -17,19 +17,21 @@ public class AuthService : IAuthService
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthService> _logger;
 
-    // In-memory storage for refresh tokens (en producción usar Redis o base de datos)
-    private static readonly Dictionary<string, RefreshTokenInfo> _refreshTokens = new();
+    // Redis para almacenamiento de refresh tokens
+    private readonly StackExchange.Redis.IDatabase _redisDb;
 
     public AuthService(
         IUserRepository userRepository,
         IRoleRepository roleRepository,
         IConfiguration configuration,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        StackExchange.Redis.IConnectionMultiplexer redis)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _configuration = configuration;
         _logger = logger;
+        _redisDb = redis.GetDatabase();
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginRequestDto loginRequest)
@@ -55,13 +57,14 @@ public class AuthService : IAuthService
         var refreshToken = GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(GetJwtExpirationMinutes());
 
-        // Store refresh token
-        _refreshTokens[refreshToken] = new RefreshTokenInfo
+        // Store refresh token en Redis
+        var tokenInfo = new RefreshTokenInfo
         {
             UserId = user.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             CreatedAt = DateTime.UtcNow
         };
+        _redisDb.StringSet($"refresh_token:{refreshToken}", System.Text.Json.JsonSerializer.Serialize(tokenInfo), TimeSpan.FromDays(7));
 
         return new AuthResponseDto
         {
@@ -119,13 +122,14 @@ public class AuthService : IAuthService
         var refreshToken = GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(GetJwtExpirationMinutes());
 
-        // Store refresh token
-        _refreshTokens[refreshToken] = new RefreshTokenInfo
+        // Store refresh token en Redis
+        var tokenInfo = new RefreshTokenInfo
         {
             UserId = user.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             CreatedAt = DateTime.UtcNow
         };
+        _redisDb.StringSet($"refresh_token:{refreshToken}", System.Text.Json.JsonSerializer.Serialize(tokenInfo), TimeSpan.FromDays(7));
 
         return new AuthResponseDto
         {
@@ -161,13 +165,14 @@ public class AuthService : IAuthService
         var refreshToken = GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(GetJwtExpirationMinutes());
 
-        // Store refresh token
-        _refreshTokens[refreshToken] = new RefreshTokenInfo
+        // Store refresh token en Redis
+        var tokenInfo = new RefreshTokenInfo
         {
             UserId = user.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             CreatedAt = DateTime.UtcNow
         };
+        _redisDb.StringSet($"refresh_token:{refreshToken}", System.Text.Json.JsonSerializer.Serialize(tokenInfo), TimeSpan.FromDays(7));
 
         return new AuthResponseDto
         {
@@ -259,38 +264,37 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)
     {
-        if (!_refreshTokens.TryGetValue(refreshToken, out var tokenInfo))
+        // Obtener refresh token de Redis
+        var tokenInfoJson = await _redisDb.StringGetAsync($"refresh_token:{refreshToken}");
+        if (string.IsNullOrEmpty(tokenInfoJson))
         {
             throw new UnauthorizedAccessException("Token de actualización inválido");
         }
-
-        if (tokenInfo.ExpiresAt < DateTime.UtcNow)
+        var tokenInfo = System.Text.Json.JsonSerializer.Deserialize<RefreshTokenInfo>(tokenInfoJson!);
+        if (tokenInfo == null || tokenInfo.ExpiresAt < DateTime.UtcNow)
         {
-            _refreshTokens.Remove(refreshToken);
+            await _redisDb.KeyDeleteAsync($"refresh_token:{refreshToken}");
             throw new UnauthorizedAccessException("Token de actualización expirado");
         }
-
         var user = await _userRepository.GetByIdAsync(tokenInfo.UserId);
         if (user == null || !user.IsActive)
         {
-            _refreshTokens.Remove(refreshToken);
+            await _redisDb.KeyDeleteAsync($"refresh_token:{refreshToken}");
             throw new UnauthorizedAccessException("Usuario no encontrado o inactivo");
         }
-
         // Generate new tokens
         var newToken = GenerateJwtToken(user);
         var newRefreshToken = GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(GetJwtExpirationMinutes());
-
         // Remove old refresh token and store new one
-        _refreshTokens.Remove(refreshToken);
-        _refreshTokens[newRefreshToken] = new RefreshTokenInfo
+        await _redisDb.KeyDeleteAsync($"refresh_token:{refreshToken}");
+        var newTokenInfo = new RefreshTokenInfo
         {
             UserId = user.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             CreatedAt = DateTime.UtcNow
         };
-
+        await _redisDb.StringSetAsync($"refresh_token:{newRefreshToken}", System.Text.Json.JsonSerializer.Serialize(newTokenInfo), TimeSpan.FromDays(7));
         return new AuthResponseDto
         {
             Token = newToken,
@@ -340,7 +344,7 @@ public class AuthService : IAuthService
 
     public async Task<bool> LogoutAsync(string refreshToken)
     {
-        return _refreshTokens.Remove(refreshToken);
+        return await _redisDb.KeyDeleteAsync($"refresh_token:{refreshToken}");
     }
 
     public string GenerateJwtToken(User user)
