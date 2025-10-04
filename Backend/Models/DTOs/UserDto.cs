@@ -10,7 +10,11 @@ public class UserDto
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool IsActive { get; set; }
-    public RoleDto Role { get; set; } = null!;
+    public int RoleId { get; set; }
+    public string RoleName { get; set; } = string.Empty;
+    public string Provider { get; set; } = "local";
+    public string? ProfilePictureUrl { get; set; }
+    public RoleDto? Role { get; set; }
 }
 
 public class CreateUserDto

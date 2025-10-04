@@ -11,6 +11,11 @@ public class User
     public DateTime? UpdatedAt { get; set; }
     public bool IsActive { get; set; } = true;
 
+    // Google OAuth fields
+    public string? GoogleId { get; set; }
+    public string? ProfilePictureUrl { get; set; }
+    public string? Provider { get; set; } = "local"; // "local" or "google"
+
     // Foreign Key
     public int RoleId { get; set; }
     

@@ -51,10 +51,20 @@ public class ApplicationDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(255);
             entity.Property(e => e.PasswordHash)
-                .IsRequired()
                 .HasMaxLength(255);
+            entity.Property(e => e.GoogleId)
+                .HasMaxLength(100);
+            entity.Property(e => e.ProfilePictureUrl)
+                .HasMaxLength(500);
+            entity.Property(e => e.Provider)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("local");
             entity.HasIndex(e => e.Email)
                 .IsUnique();
+            entity.HasIndex(e => e.GoogleId)
+                .IsUnique()
+                .HasFilter("[GoogleId] IS NOT NULL");
             entity.Property(e => e.CreatedAt)
                 .IsRequired();
             entity.Property(e => e.IsActive)

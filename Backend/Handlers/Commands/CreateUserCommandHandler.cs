@@ -26,6 +26,7 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, Backe
             Email = request.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             RoleId = 2, // Por defecto Usuario
+            Provider = "local",
             IsActive = true
         };
 
