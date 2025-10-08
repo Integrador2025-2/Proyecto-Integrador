@@ -1,0 +1,28 @@
+Listado de rutas de carpetas para el volumen Windows
+El número de serie del volumen es CACA-BD20
+C:.
+¦   .gitignore
+¦   eslint.config.js
+¦   estructura_carpetas.txt
+¦   index.html
+¦   package-lock.json
+¦   package.json
+¦   README.md
+¦   tsconfig.app.json
+¦   tsconfig.json
+¦   tsconfig.node.json
+¦   vite.config.ts
+¦   
++---public
+¦       vite.svg
+¦       
++---src
+    ¦   App.css
+    ¦   App.tsx
+    ¦   index.css
+    ¦   main.tsx
+    ¦   vite-env.d.ts
+    ¦   
+    +---assets
+            react.svg
+            
