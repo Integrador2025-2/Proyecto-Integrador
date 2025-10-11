@@ -1,0 +1,36 @@
+# Ignorar artefactos de compilación
+/bin/
+/obj/
+
+# Visual Studio y archivos de usuario
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.cache
+
+# Archivos de configuración que pueden contener cadenas de conexión / secretos
+appsettings.json
+appsettings.*.json
+secrets.json
+.env
+
+# Ignorar todos los archivos de Migrations excepto el snapshot del modelo
+Migrations/*
+!Migrations/ApplicationDbContextModelSnapshot.cs
+
+# Archivos binarios y temporales
+*.dll
+*.exe
+*.pdb
+
+# Node/npm artefactos (por si hay frontends)
+node_modules/
+
+# Logs
+*.log
+
+# Otros
+*.cache
+
+# Fin

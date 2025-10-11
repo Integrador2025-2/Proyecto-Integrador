@@ -12,6 +12,15 @@ public class ApplicationDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Role> Roles { get; set; }
     public DbSet<WeatherForecast> WeatherForecasts { get; set; }
+    public DbSet<Proyecto> Proyectos { get; set; }
+    public DbSet<Actividad> Actividades { get; set; }
+    public DbSet<Rubro> Rubros { get; set; }
+    public DbSet<TalentoHumano> TalentoHumano { get; set; }
+    public DbSet<ServiciosTecnologicos> ServiciosTecnologicos { get; set; }
+    public DbSet<EquiposSoftware> EquiposSoftware { get; set; }
+    public DbSet<MaterialesInsumos> MaterialesInsumos { get; set; }
+    public DbSet<CapacitacionEventos> CapacitacionEventos { get; set; }
+    public DbSet<GastosViaje> GastosViaje { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
