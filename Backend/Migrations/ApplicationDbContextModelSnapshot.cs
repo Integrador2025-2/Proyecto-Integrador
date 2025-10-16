@@ -22,6 +22,40 @@ namespace Backend.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Backend.Models.Domain.ActXEntidad", b =>
+                {
+                    b.Property<int>("ActXEntidadId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ActXEntidadId"));
+
+                    b.Property<int>("ActividadId")
+                        .HasColumnType("int")
+                        .HasColumnName("act_id");
+
+                    b.Property<decimal>("Efectivo")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("EntidadId")
+                        .HasColumnType("int")
+                        .HasColumnName("entidad_id");
+
+                    b.Property<decimal>("Especie")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("ActXEntidadId");
+
+                    b.HasIndex("ActividadId");
+
+                    b.HasIndex("EntidadId");
+
+                    b.ToTable("ActxEntidades", (string)null);
+                });
+
             modelBuilder.Entity("Backend.Models.Domain.Actividad", b =>
                 {
                     b.Property<int>("ActividadId")
@@ -29,6 +63,9 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ActividadId"));
+
+                    b.Property<int?>("CadenaDeValorId")
+                        .HasColumnType("int");
 
                     b.Property<int>("CantidadAnios")
                         .HasColumnType("int");
@@ -57,7 +94,38 @@ namespace Backend.Migrations
 
                     b.HasKey("ActividadId");
 
+                    b.HasIndex("CadenaDeValorId");
+
                     b.ToTable("Actividades");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.CadenaDeValor", b =>
+                {
+                    b.Property<int>("CadenaDeValorId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("CadenaDeValorId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CadenaDeValorId"));
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("ObjetivoEspecifico")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Producto")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("CadenaDeValorId");
+
+                    b.ToTable("CadenasDeValor", (string)null);
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.CapacitacionEventos", b =>
@@ -100,6 +168,25 @@ namespace Backend.Migrations
                     b.HasIndex("ActividadId");
 
                     b.ToTable("CapacitacionEventos");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Entidad", b =>
+                {
+                    b.Property<int>("EntidadId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id_Entidad");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EntidadId"));
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("EntidadId");
+
+                    b.ToTable("Entidades", (string)null);
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.EquiposSoftware", b =>
@@ -282,7 +369,7 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 325, DateTimeKind.Utc).AddTicks(6065),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 20, 699, DateTimeKind.Utc).AddTicks(6154),
                             Description = "Rol con permisos completos del sistema",
                             IsActive = true,
                             Name = "Administrador",
@@ -291,7 +378,7 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 325, DateTimeKind.Utc).AddTicks(6071),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 20, 699, DateTimeKind.Utc).AddTicks(6158),
                             Description = "Rol con permisos básicos del sistema",
                             IsActive = true,
                             Name = "Usuario",
@@ -397,6 +484,44 @@ namespace Backend.Migrations
                     b.ToTable("TalentoHumano");
                 });
 
+            modelBuilder.Entity("Backend.Models.Domain.Tarea", b =>
+                {
+                    b.Property<int>("TareaId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("TareaId");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TareaId"));
+
+                    b.Property<int>("ActividadId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal>("Monto")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Periodo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("TareaId");
+
+                    b.HasIndex("ActividadId");
+
+                    b.ToTable("Tareas", (string)null);
+                });
+
             modelBuilder.Entity("Backend.Models.Domain.User", b =>
                 {
                     b.Property<int>("Id")
@@ -471,36 +596,36 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 512, DateTimeKind.Utc).AddTicks(5419),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 20, 819, DateTimeKind.Utc).AddTicks(3993),
                             Email = "juan.perez@email.com",
                             FirstName = "Juan",
                             IsActive = true,
                             LastName = "Pérez",
-                            PasswordHash = "$2a$11$eqaL2AaBqoAVQZWpdgs/iegNjoBSR.iOg95Gev0Pj1LNHGMRBBvXO",
+                            PasswordHash = "$2a$11$xY0/3VJnZriSqb4bwYwtVerjBplO1vhBN1yuw8v5ZKjSF0/JUhJja",
                             Provider = "local",
                             RoleId = 1
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 695, DateTimeKind.Utc).AddTicks(7772),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 20, 941, DateTimeKind.Utc).AddTicks(9608),
                             Email = "maria.gonzalez@email.com",
                             FirstName = "María",
                             IsActive = true,
                             LastName = "González",
-                            PasswordHash = "$2a$11$pVYOnfnDCbcjg3lvnHq9reXVAZe9ZbXQCW3Qkq5OWZm0XLBYMjcPS",
+                            PasswordHash = "$2a$11$doH/D3dtT4fiEF35PHxS2u3ZJPIP5QoB0OStAYdXd5b.hhe1tUXcC",
                             Provider = "local",
                             RoleId = 2
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 894, DateTimeKind.Utc).AddTicks(7013),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(8992),
                             Email = "carlos.lopez@email.com",
                             FirstName = "Carlos",
                             IsActive = false,
                             LastName = "López",
-                            PasswordHash = "$2a$11$Ijifh3yVXkOsFUH8mQwrIu6h7iyoRE6WUrs2/NALEyxOmOsVl4DO6",
+                            PasswordHash = "$2a$11$M0O.vH8dmyeTLVLTHU.HBugXnNQzlkeOg9T8Cd.N.mQ8qlWOQ0Hvi",
                             Provider = "local",
                             RoleId = 2
                         });
@@ -538,83 +663,110 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 894, DateTimeKind.Utc).AddTicks(7544),
-                            Date = new DateOnly(2025, 10, 11),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9378),
+                            Date = new DateOnly(2025, 10, 16),
                             Summary = "Bracing",
                             TemperatureC = 30
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 894, DateTimeKind.Utc).AddTicks(7555),
-                            Date = new DateOnly(2025, 10, 12),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9390),
+                            Date = new DateOnly(2025, 10, 17),
                             Summary = "Warm",
                             TemperatureC = -11
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 894, DateTimeKind.Utc).AddTicks(7558),
-                            Date = new DateOnly(2025, 10, 13),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9391),
+                            Date = new DateOnly(2025, 10, 18),
                             Summary = "Chilly",
                             TemperatureC = -8
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 894, DateTimeKind.Utc).AddTicks(7561),
-                            Date = new DateOnly(2025, 10, 14),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9392),
+                            Date = new DateOnly(2025, 10, 19),
                             Summary = "Warm",
                             TemperatureC = 34
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 894, DateTimeKind.Utc).AddTicks(7563),
-                            Date = new DateOnly(2025, 10, 15),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9393),
+                            Date = new DateOnly(2025, 10, 20),
                             Summary = "Hot",
                             TemperatureC = -7
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 894, DateTimeKind.Utc).AddTicks(7577),
-                            Date = new DateOnly(2025, 10, 16),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9403),
+                            Date = new DateOnly(2025, 10, 21),
                             Summary = "Chilly",
                             TemperatureC = -3
                         },
                         new
                         {
                             Id = 7,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 894, DateTimeKind.Utc).AddTicks(7579),
-                            Date = new DateOnly(2025, 10, 17),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9404),
+                            Date = new DateOnly(2025, 10, 22),
                             Summary = "Cool",
                             TemperatureC = 17
                         },
                         new
                         {
                             Id = 8,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 894, DateTimeKind.Utc).AddTicks(7582),
-                            Date = new DateOnly(2025, 10, 18),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9405),
+                            Date = new DateOnly(2025, 10, 23),
                             Summary = "Chilly",
                             TemperatureC = 8
                         },
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 894, DateTimeKind.Utc).AddTicks(7585),
-                            Date = new DateOnly(2025, 10, 19),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9406),
+                            Date = new DateOnly(2025, 10, 24),
                             Summary = "Freezing",
                             TemperatureC = 18
                         },
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2025, 10, 11, 1, 57, 2, 894, DateTimeKind.Utc).AddTicks(7589),
-                            Date = new DateOnly(2025, 10, 20),
+                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9408),
+                            Date = new DateOnly(2025, 10, 25),
                             Summary = "Warm",
                             TemperatureC = 41
                         });
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.ActXEntidad", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.Actividad", "Actividad")
+                        .WithMany("ActXEntidades")
+                        .HasForeignKey("ActividadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Backend.Models.Domain.Entidad", "Entidad")
+                        .WithMany("ActXEntidades")
+                        .HasForeignKey("EntidadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Actividad");
+
+                    b.Navigation("Entidad");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Actividad", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.CadenaDeValor", null)
+                        .WithMany("Actividades")
+                        .HasForeignKey("CadenaDeValorId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.CapacitacionEventos", b =>
@@ -667,6 +819,17 @@ namespace Backend.Migrations
                     b.Navigation("Actividad");
                 });
 
+            modelBuilder.Entity("Backend.Models.Domain.Tarea", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.Actividad", "Actividad")
+                        .WithMany()
+                        .HasForeignKey("ActividadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Actividad");
+                });
+
             modelBuilder.Entity("Backend.Models.Domain.User", b =>
                 {
                     b.HasOne("Backend.Models.Domain.Role", "Role")
@@ -680,6 +843,8 @@ namespace Backend.Migrations
 
             modelBuilder.Entity("Backend.Models.Domain.Actividad", b =>
                 {
+                    b.Navigation("ActXEntidades");
+
                     b.Navigation("CapacitacionEventos");
 
                     b.Navigation("EquiposSoftware");
@@ -691,6 +856,16 @@ namespace Backend.Migrations
                     b.Navigation("ServiciosTecnologicos");
 
                     b.Navigation("TalentoHumano");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.CadenaDeValor", b =>
+                {
+                    b.Navigation("Actividades");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Entidad", b =>
+                {
+                    b.Navigation("ActXEntidades");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.Role", b =>

@@ -33,4 +33,7 @@ public class Actividad
     public List<Backend.Models.Domain.MaterialesInsumos>? MaterialesInsumos { get; set; }
     public List<Backend.Models.Domain.CapacitacionEventos>? CapacitacionEventos { get; set; }
     public List<Backend.Models.Domain.GastosViaje>? GastosViaje { get; set; }
+    
+    // Entidades participantes en la actividad (tabla intermedia)
+    public List<Backend.Models.Domain.ActXEntidad>? ActXEntidades { get; set; }
 }

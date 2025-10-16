@@ -143,6 +143,27 @@ public class MappingProfile : Profile
         CreateMap<EquiposSoftware, EquiposSoftwareDto>();
         CreateMap<CreateEquiposSoftwareDto, EquiposSoftware>();
         CreateMap<UpdateEquiposSoftwareDto, EquiposSoftware>();
+
+        // Entidad mappings
+        CreateMap<Entidad, EntidadDto>();
+        CreateMap<CreateEntidadDto, Entidad>();
+        CreateMap<UpdateEntidadDto, Entidad>();
+
+        // ActXEntidad mappings
+        CreateMap<ActXEntidad, ActxEntidadDto>()
+            .ForMember(dest => dest.Entidad, opt => opt.MapFrom(src => src.Entidad));
+        CreateMap<CreateActxEntidadDto, ActXEntidad>();
+        CreateMap<UpdateActxEntidadDto, ActXEntidad>();
+
+        // CadenaDeValor mappings
+        CreateMap<CadenaDeValor, CadenaDeValorDto>();
+        CreateMap<CreateCadenaDeValorDto, CadenaDeValor>();
+        CreateMap<UpdateCadenaDeValorDto, CadenaDeValor>();
+
+        // Tarea mappings
+        CreateMap<Tarea, TareaDto>();
+        CreateMap<CreateTareaDto, Tarea>();
+        CreateMap<UpdateTareaDto, Tarea>();
     }
 }
 

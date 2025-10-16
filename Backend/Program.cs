@@ -28,6 +28,9 @@ builder.Services.AddDbContext<Backend.Infrastructure.Context.ApplicationDbContex
 // Add repositories
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IUserRepository, Backend.Infrastructure.Repositories.UserRepository>();
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IRoleRepository, Backend.Infrastructure.Repositories.RoleRepository>();
+// Register new repositories
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IEntidadRepository, Backend.Infrastructure.Repositories.EntidadRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IActXEntidadRepository, Backend.Infrastructure.Repositories.ActXEntidadRepository>();
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IProyectoRepository, Backend.Infrastructure.Repositories.ProyectoRepository>();
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IActividadRepository, Backend.Infrastructure.Repositories.ActividadRepository>();
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IRubroRepository, Backend.Infrastructure.Repositories.RubroRepository>();
@@ -38,6 +41,9 @@ builder.Services.AddScoped<Backend.Infrastructure.Repositories.ICapacitacionEven
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IGastosViajeRepository, Backend.Infrastructure.Repositories.GastosViajeRepository>();
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.ITalentoHumanoRepository, Backend.Infrastructure.Repositories.TalentoHumanoRepository>();
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IEquiposSoftwareRepository, Backend.Infrastructure.Repositories.EquiposSoftwareRepository>();
+// New repositories for CadenaDeValor and Tarea
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.ICadenaDeValorRepository, Backend.Infrastructure.Repositories.CadenaDeValorRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.ITareaRepository, Backend.Infrastructure.Repositories.TareaRepository>();
 
 // Add services
 builder.Services.AddScoped<Backend.Services.IAuthService, Backend.Services.AuthService>();
