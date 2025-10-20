@@ -10,14 +10,12 @@
 *.sln.cache
 
 # Archivos de configuración que pueden contener cadenas de conexión / secretos
+# NOTE: appsettings are local config / may contain secrets; keep ignored by default
 appsettings.json
 appsettings.*.json
 secrets.json
 .env
 
-# Ignorar todos los archivos de Migrations excepto el snapshot del modelo
-Migrations/*
-!Migrations/ApplicationDbContextModelSnapshot.cs
 
 # Archivos binarios y temporales
 *.dll
@@ -34,3 +32,11 @@ node_modules/
 *.cache
 
 # Fin
+
+# Ensure EF Migrations are tracked (do NOT ignore the migrations C# files)
+!Migrations/
+!Migrations/*.cs
+
+# Scripts and docs we want in the repo
+!scripts/
+!docs/
