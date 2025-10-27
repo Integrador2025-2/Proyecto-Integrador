@@ -116,20 +116,27 @@ public class AuthService : IAuthService
             IsActive = true
         };
 
-        await _userRepository.CreateAsync(user);
+        var createdUser = await _userRepository.CreateAsync(user);
 
-        var token = GenerateJwtToken(user);
+        var token = GenerateJwtToken(createdUser);
         var refreshToken = GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(GetJwtExpirationMinutes());
 
         // Store refresh token en Redis
-        var tokenInfo = new RefreshTokenInfo
+        try
         {
-            UserId = user.Id,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            CreatedAt = DateTime.UtcNow
-        };
-        _redisDb.StringSet($"refresh_token:{refreshToken}", System.Text.Json.JsonSerializer.Serialize(tokenInfo), TimeSpan.FromDays(7));
+            var tokenInfo = new RefreshTokenInfo
+            {
+                UserId = createdUser.Id,
+                ExpiresAt = DateTime.UtcNow.AddDays(7),
+                CreatedAt = DateTime.UtcNow
+            };
+            _redisDb.StringSet($"refresh_token:{refreshToken}", System.Text.Json.JsonSerializer.Serialize(tokenInfo), TimeSpan.FromDays(7));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error guardando refresh token en Redis, continuando sin él");
+        }
 
         return new AuthResponseDto
         {
@@ -138,17 +145,17 @@ public class AuthService : IAuthService
             ExpiresAt = expiresAt,
             User = new UserDto
             {
-                Id = user.Id,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Email = user.Email,
-                IsActive = user.IsActive,
-                CreatedAt = user.CreatedAt,
-                UpdatedAt = user.UpdatedAt,
-                RoleId = user.RoleId,
-                RoleName = role.Name,
-                Provider = user.Provider,
-                ProfilePictureUrl = user.ProfilePictureUrl
+                Id = createdUser.Id,
+                FirstName = createdUser.FirstName,
+                LastName = createdUser.LastName,
+                Email = createdUser.Email,
+                IsActive = createdUser.IsActive,
+                CreatedAt = createdUser.CreatedAt,
+                UpdatedAt = createdUser.UpdatedAt,
+                RoleId = createdUser.RoleId,
+                RoleName = createdUser.Role?.Name ?? role.Name,
+                Provider = createdUser.Provider,
+                ProfilePictureUrl = createdUser.ProfilePictureUrl
             }
         };
     }

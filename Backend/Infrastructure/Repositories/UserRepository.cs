@@ -72,7 +72,9 @@ public class UserRepository : IUserRepository
         user.CreatedAt = DateTime.UtcNow;
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
-        return user;
+        
+        // Recargar el usuario con su Role para evitar problemas de navegación
+        return await GetByIdAsync(user.Id) ?? user;
     }
 
     public async Task<User> UpdateAsync(User user)
