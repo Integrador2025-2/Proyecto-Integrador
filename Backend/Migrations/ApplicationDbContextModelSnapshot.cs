@@ -369,7 +369,7 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 20, 699, DateTimeKind.Utc).AddTicks(6154),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 43, DateTimeKind.Utc).AddTicks(4096),
                             Description = "Rol con permisos completos del sistema",
                             IsActive = true,
                             Name = "Administrador",
@@ -378,7 +378,7 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 20, 699, DateTimeKind.Utc).AddTicks(6158),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 43, DateTimeKind.Utc).AddTicks(4104),
                             Description = "Rol con permisos básicos del sistema",
                             IsActive = true,
                             Name = "Usuario",
@@ -596,36 +596,36 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 20, 819, DateTimeKind.Utc).AddTicks(3993),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 167, DateTimeKind.Utc).AddTicks(5607),
                             Email = "juan.perez@email.com",
                             FirstName = "Juan",
                             IsActive = true,
                             LastName = "Pérez",
-                            PasswordHash = "$2a$11$xY0/3VJnZriSqb4bwYwtVerjBplO1vhBN1yuw8v5ZKjSF0/JUhJja",
+                            PasswordHash = "$2a$11$4odUBHFRxmGmya/1mGMmvOeDtqIHu6/nEUfzLI7zXgH7QWFkLUTs2",
                             Provider = "local",
                             RoleId = 1
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 20, 941, DateTimeKind.Utc).AddTicks(9608),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 290, DateTimeKind.Utc).AddTicks(547),
                             Email = "maria.gonzalez@email.com",
                             FirstName = "María",
                             IsActive = true,
                             LastName = "González",
-                            PasswordHash = "$2a$11$doH/D3dtT4fiEF35PHxS2u3ZJPIP5QoB0OStAYdXd5b.hhe1tUXcC",
+                            PasswordHash = "$2a$11$0sj/.t6SERwYShldcpjeCOV5wnmmrYV.Lp2gBeszIRUhdM6Sdmgxm",
                             Provider = "local",
                             RoleId = 2
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(8992),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(8893),
                             Email = "carlos.lopez@email.com",
                             FirstName = "Carlos",
                             IsActive = false,
                             LastName = "López",
-                            PasswordHash = "$2a$11$M0O.vH8dmyeTLVLTHU.HBugXnNQzlkeOg9T8Cd.N.mQ8qlWOQ0Hvi",
+                            PasswordHash = "$2a$11$eqzR36cgL.hKoFDWzcbYsuy3wAdP4XHZRAOk06TxoYrhPn2vZNq2.",
                             Provider = "local",
                             RoleId = 2
                         });
@@ -663,80 +663,80 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9378),
-                            Date = new DateOnly(2025, 10, 16),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9247),
+                            Date = new DateOnly(2025, 10, 27),
                             Summary = "Bracing",
                             TemperatureC = 30
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9390),
-                            Date = new DateOnly(2025, 10, 17),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9254),
+                            Date = new DateOnly(2025, 10, 28),
                             Summary = "Warm",
                             TemperatureC = -11
                         },
                         new
                         {
                             Id = 3,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9391),
-                            Date = new DateOnly(2025, 10, 18),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9256),
+                            Date = new DateOnly(2025, 10, 29),
                             Summary = "Chilly",
                             TemperatureC = -8
                         },
                         new
                         {
                             Id = 4,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9392),
-                            Date = new DateOnly(2025, 10, 19),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9259),
+                            Date = new DateOnly(2025, 10, 30),
                             Summary = "Warm",
                             TemperatureC = 34
                         },
                         new
                         {
                             Id = 5,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9393),
-                            Date = new DateOnly(2025, 10, 20),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9261),
+                            Date = new DateOnly(2025, 10, 31),
                             Summary = "Hot",
                             TemperatureC = -7
                         },
                         new
                         {
                             Id = 6,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9403),
-                            Date = new DateOnly(2025, 10, 21),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9271),
+                            Date = new DateOnly(2025, 11, 1),
                             Summary = "Chilly",
                             TemperatureC = -3
                         },
                         new
                         {
                             Id = 7,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9404),
-                            Date = new DateOnly(2025, 10, 22),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9273),
+                            Date = new DateOnly(2025, 11, 2),
                             Summary = "Cool",
                             TemperatureC = 17
                         },
                         new
                         {
                             Id = 8,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9405),
-                            Date = new DateOnly(2025, 10, 23),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9275),
+                            Date = new DateOnly(2025, 11, 3),
                             Summary = "Chilly",
                             TemperatureC = 8
                         },
                         new
                         {
                             Id = 9,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9406),
-                            Date = new DateOnly(2025, 10, 24),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9277),
+                            Date = new DateOnly(2025, 11, 4),
                             Summary = "Freezing",
                             TemperatureC = 18
                         },
                         new
                         {
                             Id = 10,
-                            CreatedAt = new DateTime(2025, 10, 16, 3, 46, 21, 63, DateTimeKind.Utc).AddTicks(9408),
-                            Date = new DateOnly(2025, 10, 25),
+                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9280),
+                            Date = new DateOnly(2025, 11, 5),
                             Summary = "Warm",
                             TemperatureC = 41
                         });
