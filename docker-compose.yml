@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # Base de datos SQL Server
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: proyecto_integrador_sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=ProyectoIntegrador123!
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - proyecto_network
+
+  # Redis para caché
+  redis:
+    image: redis:7-alpine
+    container_name: proyecto_integrador_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - proyecto_network
+
+  # Servicio RAG en Python
+  rag-service:
+    build:
+      context: ./RAG-Service
+      dockerfile: Dockerfile
+    container_name: proyecto_integrador_rag
+    ports:
+      - "8001:8001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
+      - CHROMA_DB_PATH=./chroma_db
+      - BACKEND_API_URL=http://backend:5000
+      - UPLOAD_DIR=./uploads
+      - GENERATED_BUDGETS_DIR=./generated_budgets
+      - MAX_FILE_SIZE_MB=50
+      - DEBUG=True
+      - LOG_LEVEL=INFO
+    volumes:
+      - rag_data:/app/chroma_db
+      - rag_uploads:/app/uploads
+      - rag_budgets:/app/generated_budgets
+    networks:
+      - proyecto_network
+    depends_on:
+      - sqlserver
+      - redis
+
+  # Backend .NET
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: proyecto_integrador_backend
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=ProyectoIntegradorDb;User Id=sa;Password=ProyectoIntegrador123!;TrustServerCertificate=True;MultipleActiveResultSets=True;
+      - Redis__ConnectionString=redis:6379
+      - RAGService__BaseUrl=http://rag-service:8001
+      - JwtSettings__SecretKey=ProyectoIntegrador2024_SuperSecretKey_AtLeast32CharactersLong_ForJWTTokenGeneration
+      - JwtSettings__Issuer=ProyectoIntegrador
+      - JwtSettings__Audience=ProyectoIntegrador
+      - JwtSettings__ExpirationMinutes=60
+    depends_on:
+      - sqlserver
+      - redis
+      - rag-service
+    networks:
+      - proyecto_network
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: proyecto_integrador_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+      - VITE_RAG_SERVICE_URL=http://localhost:8001
+    depends_on:
+      - backend
+    networks:
+      - proyecto_network
+
+  # Nginx como proxy reverso (opcional)
+  nginx:
+    image: nginx:alpine
+    container_name: proyecto_integrador_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - frontend
+      - backend
+      - rag-service
+    networks:
+      - proyecto_network
+
+volumes:
+  sqlserver_data:
+    driver: local
+  redis_data:
+    driver: local
+  rag_data:
+    driver: local
+  rag_uploads:
+    driver: local
+  rag_budgets:
+    driver: local
+
+networks:
+  proyecto_network:
+    driver: bridge
