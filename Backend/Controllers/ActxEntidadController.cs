@@ -2,58 +2,85 @@ using Backend.Commands.ActxEntidad;
 using Backend.Models.DTOs;
 using Backend.Queries.ActxEntidad;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class ActxEntidadController : ControllerBase
+public class ActXEntidadController : ControllerBase
 {
     private readonly IMediator _mediator;
 
-    public ActxEntidadController(IMediator mediator)
+    public ActXEntidadController(IMediator mediator)
     {
         _mediator = mediator;
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<ActxEntidadDto>>> GetAll([FromQuery] int? actividadId = null)
+    public async Task<ActionResult<IEnumerable<ActXEntidadDto>>> GetAll()
     {
-        var query = new GetAllActxEntidadQuery { ActividadId = actividadId };
-        var items = await _mediator.Send(query);
-        return Ok(items);
+        var query = new GetAllActXEntidadesQuery();
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<ActxEntidadDto>> GetById(int id)
+    public async Task<ActionResult<ActXEntidadDto>> GetById(int id)
     {
-        var query = new GetActxEntidadByIdQuery { Id = id };
-        var item = await _mediator.Send(query);
-        if (item == null) return NotFound();
-        return Ok(item);
+        var query = new GetActXEntidadByIdQuery { Id = id };
+        var result = await _mediator.Send(query);
+        
+        if (result == null)
+            return NotFound();
+            
+        return Ok(result);
+    }
+
+    [HttpGet("actividad/{actividadId}")]
+    public async Task<ActionResult<IEnumerable<ActXEntidadDto>>> GetByActividadId(int actividadId)
+    {
+        var query = new GetActXEntidadesByActividadIdQuery { ActividadId = actividadId };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
+    [HttpGet("entidad/{entidadId}")]
+    public async Task<ActionResult<IEnumerable<ActXEntidadDto>>> GetByEntidadId(int entidadId)
+    {
+        var query = new GetActXEntidadesByEntidadIdQuery { EntidadId = entidadId };
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 
     [HttpPost]
-    public async Task<ActionResult<ActxEntidadDto>> Create([FromBody] CreateActxEntidadCommand command)
+    public async Task<ActionResult<ActXEntidadDto>> Create([FromBody] CreateActXEntidadCommand command)
     {
-        var created = await _mediator.Send(command);
-        return CreatedAtAction(nameof(GetById), new { id = created.ActXEntidadId }, created);
+        var result = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult<ActxEntidadDto>> Update(int id, [FromBody] UpdateActxEntidadCommand command)
+    public async Task<ActionResult<ActXEntidadDto>> Update(int id, [FromBody] UpdateActXEntidadCommand command)
     {
-        if (id != command.ActXEntidadId) return BadRequest("ID mismatch");
-        var updated = await _mediator.Send(command);
-        return Ok(updated);
+        if (id != command.Id)
+            return BadRequest();
+
+        var result = await _mediator.Send(command);
+        return Ok(result);
     }
 
     [HttpDelete("{id}")]
     public async Task<ActionResult> Delete(int id)
     {
-        var command = new DeleteActxEntidadCommand { ActXEntidadId = id };
-        await _mediator.Send(command);
+        var command = new DeleteActXEntidadCommand { Id = id };
+        var result = await _mediator.Send(command);
+        
+        if (!result)
+            return NotFound();
+            
         return NoContent();
     }
 }
