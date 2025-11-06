@@ -24,36 +24,34 @@ namespace Backend.Migrations
 
             modelBuilder.Entity("Backend.Models.Domain.ActXEntidad", b =>
                 {
-                    b.Property<int>("ActXEntidadId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("Id");
+                        .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ActXEntidadId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("ActividadId")
-                        .HasColumnType("int")
-                        .HasColumnName("act_id");
+                        .HasColumnType("int");
 
                     b.Property<decimal>("Efectivo")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("EntidadId")
-                        .HasColumnType("int")
-                        .HasColumnName("entidad_id");
+                        .HasColumnType("int");
 
                     b.Property<decimal>("Especie")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.HasKey("ActXEntidadId");
+                    b.Property<decimal>("TotalContribucion")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
 
                     b.HasIndex("ActividadId");
 
                     b.HasIndex("EntidadId");
 
-                    b.ToTable("ActxEntidades", (string)null);
+                    b.ToTable("ActXEntidades");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.Actividad", b =>
@@ -64,15 +62,15 @@ namespace Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ActividadId"));
 
-                    b.Property<int?>("CadenaDeValorId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CantidadAnios")
+                    b.Property<int>("CadenaDeValorId")
                         .HasColumnType("int");
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DuracionAnios")
+                        .HasColumnType("int");
 
                     b.Property<string>("EspecificacionesTecnicas")
                         .IsRequired()
@@ -86,9 +84,6 @@ namespace Backend.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("ProyectoId")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("ValorUnitario")
                         .HasColumnType("decimal(18,2)");
 
@@ -99,33 +94,61 @@ namespace Backend.Migrations
                     b.ToTable("Actividades");
                 });
 
+            modelBuilder.Entity("Backend.Models.Domain.Administrativos", b =>
+                {
+                    b.Property<int>("AdministrativoId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AdministrativoId"));
+
+                    b.Property<string>("Cargo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Justificacion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RazonSocial")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RecursoEspecificoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("AdministrativoId");
+
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
+
+                    b.ToTable("Administrativos");
+                });
+
             modelBuilder.Entity("Backend.Models.Domain.CadenaDeValor", b =>
                 {
                     b.Property<int>("CadenaDeValorId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("CadenaDeValorId");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CadenaDeValorId"));
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ObjetivoEspecifico")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Producto")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                    b.Property<int>("ObjetivoId")
+                        .HasColumnType("int");
 
                     b.HasKey("CadenaDeValorId");
 
-                    b.ToTable("CadenasDeValor", (string)null);
+                    b.HasIndex("ObjetivoId");
+
+                    b.ToTable("CadenasDeValor");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.CapacitacionEventos", b =>
@@ -136,57 +159,135 @@ namespace Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CapacitacionEventosId"));
 
-                    b.Property<int?>("ActividadId")
-                        .HasColumnType("int");
-
                     b.Property<int>("Cantidad")
                         .HasColumnType("int");
 
-                    b.Property<int>("PeriodoNum")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PeriodoTipo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RagEstado")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("RubroId")
+                    b.Property<int>("RecursoEspecificoId")
                         .HasColumnType("int");
 
                     b.Property<string>("Tema")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal>("Total")
-                        .HasColumnType("decimal(18,2)");
-
                     b.HasKey("CapacitacionEventosId");
 
-                    b.HasIndex("ActividadId");
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
 
                     b.ToTable("CapacitacionEventos");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Contratacion", b =>
+                {
+                    b.Property<int>("ContratacionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ContratacionId"));
+
+                    b.Property<string>("Categoria")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ExperienciaMinima")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IdentidadAcademica")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Iva")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("NivelGestion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("ValorMensual")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("ContratacionId");
+
+                    b.ToTable("Contrataciones");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.CronogramaTarea", b =>
+                {
+                    b.Property<int>("CronogramaId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CronogramaId"));
+
+                    b.Property<int>("DuracionDias")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DuracionMeses")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaFin")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaInicio")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TareaId")
+                        .HasColumnType("int");
+
+                    b.HasKey("CronogramaId");
+
+                    b.HasIndex("TareaId");
+
+                    b.ToTable("CronogramaTareas");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Divulgacion", b =>
+                {
+                    b.Property<int>("DivulgacionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("DivulgacionId"));
+
+                    b.Property<string>("Alcance")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Justificacion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MedioDivulgacion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RecursoEspecificoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("DivulgacionId");
+
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
+
+                    b.ToTable("Divulgacion");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.Entidad", b =>
                 {
                     b.Property<int>("EntidadId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("Id_Entidad");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EntidadId"));
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("EntidadId");
 
-                    b.ToTable("Entidades", (string)null);
+                    b.ToTable("Entidades");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.EquiposSoftware", b =>
@@ -197,36 +298,17 @@ namespace Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EquiposSoftwareId"));
 
-                    b.Property<int?>("ActividadId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Cantidad")
-                        .HasColumnType("int");
-
                     b.Property<string>("EspecificacionesTecnicas")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("PeriodoNum")
+                    b.Property<int>("RecursoEspecificoId")
                         .HasColumnType("int");
-
-                    b.Property<string>("PeriodoTipo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RagEstado")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("RubroId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Total")
-                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("EquiposSoftwareId");
 
-                    b.HasIndex("ActividadId");
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
 
                     b.ToTable("EquiposSoftware");
                 });
@@ -239,31 +321,49 @@ namespace Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("GastosViajeId"));
 
-                    b.Property<int?>("ActividadId")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("Costo")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("PeriodoNum")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PeriodoTipo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RagEstado")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("RubroId")
+                    b.Property<int>("RecursoEspecificoId")
                         .HasColumnType("int");
 
                     b.HasKey("GastosViajeId");
 
-                    b.HasIndex("ActividadId");
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
 
                     b.ToTable("GastosViaje");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Infraestructura", b =>
+                {
+                    b.Property<int>("InfraestructuraId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InfraestructuraId"));
+
+                    b.Property<string>("CaracteristicasTecnicas")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Enlace")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RecursoEspecificoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TipoInfraestructura")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("InfraestructuraId");
+
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
+
+                    b.ToTable("Infraestructura");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.MaterialesInsumos", b =>
@@ -274,35 +374,103 @@ namespace Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MaterialesInsumosId"));
 
-                    b.Property<int?>("ActividadId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Materiales")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("PeriodoNum")
+                    b.Property<int>("RecursoEspecificoId")
                         .HasColumnType("int");
-
-                    b.Property<string>("PeriodoTipo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RagEstado")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("RubroId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Total")
-                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("MaterialesInsumosId");
 
-                    b.HasIndex("ActividadId");
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
 
                     b.ToTable("MaterialesInsumos");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Objetivo", b =>
+                {
+                    b.Property<int>("ObjetivoId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ObjetivoId"));
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ProyectoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ResultadoEsperado")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ObjetivoId");
+
+                    b.HasIndex("ProyectoId");
+
+                    b.ToTable("Objetivos");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Otros", b =>
+                {
+                    b.Property<int>("OtrosId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OtrosId"));
+
+                    b.Property<string>("Justificacion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RecursoEspecificoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("OtrosId");
+
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
+
+                    b.ToTable("Otros");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.ProteccionConocimientoDivulgacion", b =>
+                {
+                    b.Property<int>("ProteccionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProteccionId"));
+
+                    b.Property<string>("ActividadHapat")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EntidadResponsable")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Justificacion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RecursoEspecificoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProteccionId");
+
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
+
+                    b.ToTable("ProteccionConocimientoDivulgacion");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.Proyecto", b =>
@@ -313,15 +481,139 @@ namespace Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProyectoId"));
 
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("FechaCreacion")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("UsuarioId")
                         .HasColumnType("int");
 
                     b.HasKey("ProyectoId");
 
+                    b.HasIndex("UsuarioId");
+
                     b.ToTable("Proyectos");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Recurso", b =>
+                {
+                    b.Property<int>("RecursoId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RecursoId"));
+
+                    b.Property<int>("ActividadId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("EntidadId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MontoEfectivo")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MontoEspecie")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RubroId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TipoRecurso")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("RecursoId");
+
+                    b.HasIndex("ActividadId");
+
+                    b.HasIndex("EntidadId");
+
+                    b.HasIndex("RubroId");
+
+                    b.ToTable("Recursos");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.RecursoEspecifico", b =>
+                {
+                    b.Property<int>("RecursoEspecificoId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RecursoEspecificoId"));
+
+                    b.Property<int>("Cantidad")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Detalle")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PeriodoNum")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PeriodoTipo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RecursoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("Total")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("RecursoEspecificoId");
+
+                    b.HasIndex("RecursoId");
+
+                    b.ToTable("RecursosEspecificos");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.RemuneracionPorAnio", b =>
+                {
+                    b.Property<int>("RemuneracionPorAnioId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RemuneracionPorAnioId"));
+
+                    b.Property<int>("Anio")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Honorarios")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("SemanasAnio")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TalentoHumanoId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalAnio")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("ValorHora")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("RemuneracionPorAnioId");
+
+                    b.HasIndex("TalentoHumanoId");
+
+                    b.ToTable("RemuneracionesPorAnio");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.Role", b =>
@@ -337,31 +629,23 @@ namespace Backend.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
+                        .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Permissions")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
 
                     b.ToTable("Roles");
 
@@ -369,20 +653,20 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 43, DateTimeKind.Utc).AddTicks(4096),
+                            CreatedAt = new DateTime(2025, 11, 6, 1, 36, 48, 170, DateTimeKind.Utc).AddTicks(6495),
                             Description = "Rol con permisos completos del sistema",
                             IsActive = true,
                             Name = "Administrador",
-                            Permissions = "[\"users.create\", \"users.read\", \"users.update\", \"users.delete\", \"weather.create\", \"weather.read\", \"weather.update\", \"weather.delete\"]"
+                            Permissions = "[\"users.create\", \"users.read\", \"users.update\", \"users.delete\"]"
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 43, DateTimeKind.Utc).AddTicks(4104),
+                            CreatedAt = new DateTime(2025, 11, 6, 1, 36, 48, 170, DateTimeKind.Utc).AddTicks(6498),
                             Description = "Rol con permisos básicos del sistema",
                             IsActive = true,
                             Name = "Usuario",
-                            Permissions = "[\"users.read\", \"weather.read\"]"
+                            Permissions = "[\"users.read\"]"
                         });
                 });
 
@@ -400,7 +684,38 @@ namespace Backend.Migrations
 
                     b.HasKey("RubroId");
 
-                    b.ToTable("Rubros");
+                    b.ToTable("Rubro");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.SeguimientoEvaluacion", b =>
+                {
+                    b.Property<int>("SeguimientoId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SeguimientoId"));
+
+                    b.Property<string>("CargoResponsable")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Frecuencia")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MetodoEvaluacion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RecursoEspecificoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("SeguimientoId");
+
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
+
+                    b.ToTable("SeguimientoEvaluacion");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.ServiciosTecnologicos", b =>
@@ -411,33 +726,17 @@ namespace Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ServiciosTecnologicosId"));
 
-                    b.Property<int?>("ActividadId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Descripcion")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("PeriodoNum")
+                    b.Property<int>("RecursoEspecificoId")
                         .HasColumnType("int");
-
-                    b.Property<string>("PeriodoTipo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RagEstado")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("RubroId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Total")
-                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("ServiciosTecnologicosId");
 
-                    b.HasIndex("ActividadId");
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
 
                     b.ToTable("ServiciosTecnologicos");
                 });
@@ -450,25 +749,14 @@ namespace Backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TalentoHumanoId"));
 
-                    b.Property<int?>("ActividadId")
-                        .HasColumnType("int");
-
                     b.Property<string>("CargoEspecifico")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("PeriodoNum")
+                    b.Property<int>("ContratacionId")
                         .HasColumnType("int");
 
-                    b.Property<string>("PeriodoTipo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RagEstado")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("RubroId")
+                    b.Property<int>("RecursoEspecificoId")
                         .HasColumnType("int");
 
                     b.Property<int>("Semanas")
@@ -479,17 +767,59 @@ namespace Backend.Migrations
 
                     b.HasKey("TalentoHumanoId");
 
-                    b.HasIndex("ActividadId");
+                    b.HasIndex("ContratacionId");
+
+                    b.HasIndex("RecursoEspecificoId")
+                        .IsUnique();
 
                     b.ToTable("TalentoHumano");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.TalentoHumanoTarea", b =>
+                {
+                    b.Property<int>("TalentoHumanoTareasId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TalentoHumanoTareasId"));
+
+                    b.Property<DateTime>("FechaAsignacion")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("HorasAsignadas")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Observaciones")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RolenTarea")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TalentoHumanoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Tarea")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TareaNavigationTareaId")
+                        .HasColumnType("int");
+
+                    b.HasKey("TalentoHumanoTareasId");
+
+                    b.HasIndex("TalentoHumanoId");
+
+                    b.HasIndex("TareaNavigationTareaId");
+
+                    b.ToTable("TalentoHumanoTareas");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.Tarea", b =>
                 {
                     b.Property<int>("TareaId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("TareaId");
+                        .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TareaId"));
 
@@ -498,28 +828,24 @@ namespace Backend.Migrations
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Monto")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Periodo")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("TareaId");
 
                     b.HasIndex("ActividadId");
 
-                    b.ToTable("Tareas", (string)null);
+                    b.ToTable("Tareas");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.User", b =>
@@ -535,43 +861,31 @@ namespace Backend.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("GoogleId")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
+                        .HasColumnType("bit");
 
                     b.Property<string>("LastName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ProfilePictureUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Provider")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("local");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("RoleId")
                         .HasColumnType("int");
@@ -581,13 +895,6 @@ namespace Backend.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Email")
-                        .IsUnique();
-
-                    b.HasIndex("GoogleId")
-                        .IsUnique()
-                        .HasFilter("[GoogleId] IS NOT NULL");
-
                     b.HasIndex("RoleId");
 
                     b.ToTable("Users");
@@ -596,149 +903,26 @@ namespace Backend.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 167, DateTimeKind.Utc).AddTicks(5607),
+                            CreatedAt = new DateTime(2025, 11, 6, 1, 36, 48, 288, DateTimeKind.Utc).AddTicks(333),
                             Email = "juan.perez@email.com",
                             FirstName = "Juan",
                             IsActive = true,
                             LastName = "Pérez",
-                            PasswordHash = "$2a$11$4odUBHFRxmGmya/1mGMmvOeDtqIHu6/nEUfzLI7zXgH7QWFkLUTs2",
+                            PasswordHash = "$2a$11$R3ri5/ExUlHfWM83YHxwN.7R8OLsE1TFsLvWYDquRKAEDt7He8dAO",
                             Provider = "local",
                             RoleId = 1
                         },
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 290, DateTimeKind.Utc).AddTicks(547),
+                            CreatedAt = new DateTime(2025, 11, 6, 1, 36, 48, 406, DateTimeKind.Utc).AddTicks(2145),
                             Email = "maria.gonzalez@email.com",
                             FirstName = "María",
                             IsActive = true,
                             LastName = "González",
-                            PasswordHash = "$2a$11$0sj/.t6SERwYShldcpjeCOV5wnmmrYV.Lp2gBeszIRUhdM6Sdmgxm",
+                            PasswordHash = "$2a$11$evROIYC4kMk5mF/HxldmTOpnuTmSBgkCIzkbKt5n3V08y0UTLKza2",
                             Provider = "local",
                             RoleId = 2
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(8893),
-                            Email = "carlos.lopez@email.com",
-                            FirstName = "Carlos",
-                            IsActive = false,
-                            LastName = "López",
-                            PasswordHash = "$2a$11$eqzR36cgL.hKoFDWzcbYsuy3wAdP4XHZRAOk06TxoYrhPn2vZNq2.",
-                            Provider = "local",
-                            RoleId = 2
-                        });
-                });
-
-            modelBuilder.Entity("Backend.Models.Domain.WeatherForecast", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Summary")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("TemperatureC")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("WeatherForecasts");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9247),
-                            Date = new DateOnly(2025, 10, 27),
-                            Summary = "Bracing",
-                            TemperatureC = 30
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9254),
-                            Date = new DateOnly(2025, 10, 28),
-                            Summary = "Warm",
-                            TemperatureC = -11
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9256),
-                            Date = new DateOnly(2025, 10, 29),
-                            Summary = "Chilly",
-                            TemperatureC = -8
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9259),
-                            Date = new DateOnly(2025, 10, 30),
-                            Summary = "Warm",
-                            TemperatureC = 34
-                        },
-                        new
-                        {
-                            Id = 5,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9261),
-                            Date = new DateOnly(2025, 10, 31),
-                            Summary = "Hot",
-                            TemperatureC = -7
-                        },
-                        new
-                        {
-                            Id = 6,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9271),
-                            Date = new DateOnly(2025, 11, 1),
-                            Summary = "Chilly",
-                            TemperatureC = -3
-                        },
-                        new
-                        {
-                            Id = 7,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9273),
-                            Date = new DateOnly(2025, 11, 2),
-                            Summary = "Cool",
-                            TemperatureC = 17
-                        },
-                        new
-                        {
-                            Id = 8,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9275),
-                            Date = new DateOnly(2025, 11, 3),
-                            Summary = "Chilly",
-                            TemperatureC = 8
-                        },
-                        new
-                        {
-                            Id = 9,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9277),
-                            Date = new DateOnly(2025, 11, 4),
-                            Summary = "Freezing",
-                            TemperatureC = 18
-                        },
-                        new
-                        {
-                            Id = 10,
-                            CreatedAt = new DateTime(2025, 10, 27, 0, 16, 33, 411, DateTimeKind.Utc).AddTicks(9280),
-                            Date = new DateOnly(2025, 11, 5),
-                            Summary = "Warm",
-                            TemperatureC = 41
                         });
                 });
 
@@ -763,66 +947,269 @@ namespace Backend.Migrations
 
             modelBuilder.Entity("Backend.Models.Domain.Actividad", b =>
                 {
-                    b.HasOne("Backend.Models.Domain.CadenaDeValor", null)
+                    b.HasOne("Backend.Models.Domain.CadenaDeValor", "CadenaDeValor")
                         .WithMany("Actividades")
                         .HasForeignKey("CadenaDeValorId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CadenaDeValor");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Administrativos", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("Administrativos")
+                        .HasForeignKey("Backend.Models.Domain.Administrativos", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RecursoEspecifico");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.CadenaDeValor", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.Objetivo", "Objetivo")
+                        .WithMany("CadenasDeValor")
+                        .HasForeignKey("ObjetivoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Objetivo");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.CapacitacionEventos", b =>
                 {
-                    b.HasOne("Backend.Models.Domain.Actividad", "Actividad")
-                        .WithMany("CapacitacionEventos")
-                        .HasForeignKey("ActividadId");
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("CapacitacionEventos")
+                        .HasForeignKey("Backend.Models.Domain.CapacitacionEventos", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Actividad");
+                    b.Navigation("RecursoEspecifico");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.CronogramaTarea", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.Tarea", "Tarea")
+                        .WithMany("CronogramaTareas")
+                        .HasForeignKey("TareaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tarea");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Divulgacion", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("Divulgacion")
+                        .HasForeignKey("Backend.Models.Domain.Divulgacion", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RecursoEspecifico");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.EquiposSoftware", b =>
                 {
-                    b.HasOne("Backend.Models.Domain.Actividad", null)
-                        .WithMany("EquiposSoftware")
-                        .HasForeignKey("ActividadId");
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("EquiposSoftware")
+                        .HasForeignKey("Backend.Models.Domain.EquiposSoftware", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RecursoEspecifico");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.GastosViaje", b =>
                 {
-                    b.HasOne("Backend.Models.Domain.Actividad", "Actividad")
-                        .WithMany("GastosViaje")
-                        .HasForeignKey("ActividadId");
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("GastosViaje")
+                        .HasForeignKey("Backend.Models.Domain.GastosViaje", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Actividad");
+                    b.Navigation("RecursoEspecifico");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Infraestructura", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("Infraestructura")
+                        .HasForeignKey("Backend.Models.Domain.Infraestructura", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RecursoEspecifico");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.MaterialesInsumos", b =>
                 {
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("MaterialesInsumos")
+                        .HasForeignKey("Backend.Models.Domain.MaterialesInsumos", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RecursoEspecifico");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Objetivo", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.Proyecto", "Proyecto")
+                        .WithMany("Objetivos")
+                        .HasForeignKey("ProyectoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Proyecto");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Otros", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("Otros")
+                        .HasForeignKey("Backend.Models.Domain.Otros", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RecursoEspecifico");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.ProteccionConocimientoDivulgacion", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("ProteccionConocimientoDivulgacion")
+                        .HasForeignKey("Backend.Models.Domain.ProteccionConocimientoDivulgacion", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RecursoEspecifico");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Proyecto", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.User", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Recurso", b =>
+                {
                     b.HasOne("Backend.Models.Domain.Actividad", "Actividad")
-                        .WithMany("MaterialesInsumos")
-                        .HasForeignKey("ActividadId");
+                        .WithMany("Recursos")
+                        .HasForeignKey("ActividadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Backend.Models.Domain.Entidad", "Entidad")
+                        .WithMany()
+                        .HasForeignKey("EntidadId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Backend.Models.Domain.Rubro", "Rubro")
+                        .WithMany()
+                        .HasForeignKey("RubroId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Actividad");
+
+                    b.Navigation("Entidad");
+
+                    b.Navigation("Rubro");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.RecursoEspecifico", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.Recurso", "Recurso")
+                        .WithMany("RecursosEspecificos")
+                        .HasForeignKey("RecursoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Recurso");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.RemuneracionPorAnio", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.TalentoHumano", "TalentoHumano")
+                        .WithMany("Remuneraciones")
+                        .HasForeignKey("TalentoHumanoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TalentoHumano");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.SeguimientoEvaluacion", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("SeguimientoEvaluacion")
+                        .HasForeignKey("Backend.Models.Domain.SeguimientoEvaluacion", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RecursoEspecifico");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.ServiciosTecnologicos", b =>
                 {
-                    b.HasOne("Backend.Models.Domain.Actividad", null)
-                        .WithMany("ServiciosTecnologicos")
-                        .HasForeignKey("ActividadId");
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("ServiciosTecnologicos")
+                        .HasForeignKey("Backend.Models.Domain.ServiciosTecnologicos", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RecursoEspecifico");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.TalentoHumano", b =>
                 {
-                    b.HasOne("Backend.Models.Domain.Actividad", "Actividad")
-                        .WithMany("TalentoHumano")
-                        .HasForeignKey("ActividadId");
+                    b.HasOne("Backend.Models.Domain.Contratacion", "Contratacion")
+                        .WithMany("TalentosHumanos")
+                        .HasForeignKey("ContratacionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Actividad");
+                    b.HasOne("Backend.Models.Domain.RecursoEspecifico", "RecursoEspecifico")
+                        .WithOne("TalentoHumano")
+                        .HasForeignKey("Backend.Models.Domain.TalentoHumano", "RecursoEspecificoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Contratacion");
+
+                    b.Navigation("RecursoEspecifico");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.TalentoHumanoTarea", b =>
+                {
+                    b.HasOne("Backend.Models.Domain.TalentoHumano", "TalentoHumano")
+                        .WithMany("TalentoHumanoTareas")
+                        .HasForeignKey("TalentoHumanoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Backend.Models.Domain.Tarea", "TareaNavigation")
+                        .WithMany("TalentoHumanoTareas")
+                        .HasForeignKey("TareaNavigationTareaId");
+
+                    b.Navigation("TalentoHumano");
+
+                    b.Navigation("TareaNavigation");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.Tarea", b =>
                 {
                     b.HasOne("Backend.Models.Domain.Actividad", "Actividad")
-                        .WithMany()
+                        .WithMany("Tareas")
                         .HasForeignKey("ActividadId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -835,7 +1222,7 @@ namespace Backend.Migrations
                     b.HasOne("Backend.Models.Domain.Role", "Role")
                         .WithMany("Users")
                         .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Role");
@@ -845,17 +1232,9 @@ namespace Backend.Migrations
                 {
                     b.Navigation("ActXEntidades");
 
-                    b.Navigation("CapacitacionEventos");
+                    b.Navigation("Recursos");
 
-                    b.Navigation("EquiposSoftware");
-
-                    b.Navigation("GastosViaje");
-
-                    b.Navigation("MaterialesInsumos");
-
-                    b.Navigation("ServiciosTecnologicos");
-
-                    b.Navigation("TalentoHumano");
+                    b.Navigation("Tareas");
                 });
 
             modelBuilder.Entity("Backend.Models.Domain.CadenaDeValor", b =>
@@ -863,14 +1242,75 @@ namespace Backend.Migrations
                     b.Navigation("Actividades");
                 });
 
+            modelBuilder.Entity("Backend.Models.Domain.Contratacion", b =>
+                {
+                    b.Navigation("TalentosHumanos");
+                });
+
             modelBuilder.Entity("Backend.Models.Domain.Entidad", b =>
                 {
                     b.Navigation("ActXEntidades");
                 });
 
+            modelBuilder.Entity("Backend.Models.Domain.Objetivo", b =>
+                {
+                    b.Navigation("CadenasDeValor");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Proyecto", b =>
+                {
+                    b.Navigation("Objetivos");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Recurso", b =>
+                {
+                    b.Navigation("RecursosEspecificos");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.RecursoEspecifico", b =>
+                {
+                    b.Navigation("Administrativos");
+
+                    b.Navigation("CapacitacionEventos");
+
+                    b.Navigation("Divulgacion");
+
+                    b.Navigation("EquiposSoftware");
+
+                    b.Navigation("GastosViaje");
+
+                    b.Navigation("Infraestructura");
+
+                    b.Navigation("MaterialesInsumos");
+
+                    b.Navigation("Otros");
+
+                    b.Navigation("ProteccionConocimientoDivulgacion");
+
+                    b.Navigation("SeguimientoEvaluacion");
+
+                    b.Navigation("ServiciosTecnologicos");
+
+                    b.Navigation("TalentoHumano");
+                });
+
             modelBuilder.Entity("Backend.Models.Domain.Role", b =>
                 {
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.TalentoHumano", b =>
+                {
+                    b.Navigation("Remuneraciones");
+
+                    b.Navigation("TalentoHumanoTareas");
+                });
+
+            modelBuilder.Entity("Backend.Models.Domain.Tarea", b =>
+                {
+                    b.Navigation("CronogramaTareas");
+
+                    b.Navigation("TalentoHumanoTareas");
                 });
 #pragma warning restore 612, 618
         }

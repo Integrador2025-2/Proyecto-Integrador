@@ -1,8 +1,35 @@
 using Backend.Infrastructure.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
+using DotNetEnv;
+
+// Cargar variables de entorno desde .env
+Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Construir cadena de conexión según el entorno configurado
+var dbEnvironment = Environment.GetEnvironmentVariable("DB_ENVIRONMENT") ?? "docker";
+string connectionString;
+
+if (dbEnvironment.ToLower() == "local")
+{
+    // Configuración para SQL Server LOCAL con Windows Authentication
+    var server = Environment.GetEnvironmentVariable("DB_LOCAL_SERVER") ?? "DESKTOP-8H84J7R";
+    var database = Environment.GetEnvironmentVariable("DB_LOCAL_NAME") ?? "MinCienciasDB";
+    connectionString = $"Server={server};Database={database};Integrated Security=true;TrustServerCertificate=True;";
+    Console.WriteLine($"🔧 Usando Base de Datos LOCAL: {database} en {server}");
+}
+else
+{
+    // Configuración para SQL Server en DOCKER
+    var server = Environment.GetEnvironmentVariable("DB_DOCKER_SERVER") ?? "localhost,1433";
+    var database = Environment.GetEnvironmentVariable("DB_DOCKER_NAME") ?? "ProyectoIntegradorDb";
+    var user = Environment.GetEnvironmentVariable("DB_DOCKER_USER") ?? "sa";
+    var password = Environment.GetEnvironmentVariable("DB_DOCKER_PASSWORD") ?? "ProyectoIntegrador123!";
+    connectionString = $"Server={server};Database={database};User Id={user};Password={password};TrustServerCertificate=True;MultipleActiveResultSets=True;";
+    Console.WriteLine($"🐳 Usando Base de Datos DOCKER: {database} en {server}");
+}
 
 // Add services to the container.
 builder.Services.AddRazorPages();
@@ -19,7 +46,7 @@ builder.Services.AddHttpClient();
 
 // Add Entity Framework
 builder.Services.AddDbContext<Backend.Infrastructure.Context.ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), 
+    options.UseSqlServer(connectionString, 
         sqlOptions => sqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(30),
@@ -28,22 +55,16 @@ builder.Services.AddDbContext<Backend.Infrastructure.Context.ApplicationDbContex
 // Add repositories
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IUserRepository, Backend.Infrastructure.Repositories.UserRepository>();
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IRoleRepository, Backend.Infrastructure.Repositories.RoleRepository>();
-// Register new repositories
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IProyectoRepository, Backend.Infrastructure.Repositories.ProyectoRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IObjetivoRepository, Backend.Infrastructure.Repositories.ObjetivoRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.ICadenaDeValorRepository, Backend.Infrastructure.Repositories.CadenaDeValorRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IActividadRepository, Backend.Infrastructure.Repositories.ActividadRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.ITareaRepository, Backend.Infrastructure.Repositories.TareaRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IRecursoRepository, Backend.Infrastructure.Repositories.RecursoRepository>();
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IEntidadRepository, Backend.Infrastructure.Repositories.EntidadRepository>();
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IActXEntidadRepository, Backend.Infrastructure.Repositories.ActXEntidadRepository>();
-builder.Services.AddScoped<Backend.Infrastructure.Repositories.IProyectoRepository, Backend.Infrastructure.Repositories.ProyectoRepository>();
-builder.Services.AddScoped<Backend.Infrastructure.Repositories.IActividadRepository, Backend.Infrastructure.Repositories.ActividadRepository>();
-builder.Services.AddScoped<Backend.Infrastructure.Repositories.IRubroRepository, Backend.Infrastructure.Repositories.RubroRepository>();
-builder.Services.AddScoped<Backend.Infrastructure.Repositories.IServiciosTecnologicosRepository, Backend.Infrastructure.Repositories.ServiciosTecnologicosRepository>();
-// Repositories added for rubro-associated entities
-builder.Services.AddScoped<Backend.Infrastructure.Repositories.IMaterialesInsumosRepository, Backend.Infrastructure.Repositories.MaterialesInsumosRepository>();
-builder.Services.AddScoped<Backend.Infrastructure.Repositories.ICapacitacionEventosRepository, Backend.Infrastructure.Repositories.CapacitacionEventosRepository>();
-builder.Services.AddScoped<Backend.Infrastructure.Repositories.IGastosViajeRepository, Backend.Infrastructure.Repositories.GastosViajeRepository>();
-builder.Services.AddScoped<Backend.Infrastructure.Repositories.ITalentoHumanoRepository, Backend.Infrastructure.Repositories.TalentoHumanoRepository>();
-builder.Services.AddScoped<Backend.Infrastructure.Repositories.IEquiposSoftwareRepository, Backend.Infrastructure.Repositories.EquiposSoftwareRepository>();
-// New repositories for CadenaDeValor and Tarea
-builder.Services.AddScoped<Backend.Infrastructure.Repositories.ICadenaDeValorRepository, Backend.Infrastructure.Repositories.CadenaDeValorRepository>();
-builder.Services.AddScoped<Backend.Infrastructure.Repositories.ITareaRepository, Backend.Infrastructure.Repositories.TareaRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.ICronogramaTareaRepository, Backend.Infrastructure.Repositories.CronogramaTareaRepository>();
+// TODO: Add more repositories as needed (RecursoEspecifico types, etc.)
 
 // Add services
 builder.Services.AddScoped<Backend.Services.IAuthService, Backend.Services.AuthService>();
@@ -53,7 +74,7 @@ builder.Services.AddScoped<Backend.Services.IEmailService, Backend.Services.Smtp
 // Add Redis connection multiplexer
 builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
     StackExchange.Redis.ConnectionMultiplexer.Connect(
-        builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379"
+        Environment.GetEnvironmentVariable("REDIS_CONNECTION_STRING") ?? "localhost:6379"
     )
 );
 
@@ -108,8 +129,7 @@ var authBuilder = builder.Services.AddAuthentication(options =>
 
 authBuilder.AddJwtBearer(options =>
 {
-    var configuredSecret = builder.Configuration["JwtSettings:SecretKey"];
-    var jwtSecret = string.IsNullOrWhiteSpace(configuredSecret) ? "your-super-secret-key-that-is-at-least-32-characters-long" : configuredSecret!;
+    var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "your-super-secret-key-that-is-at-least-32-characters-long";
 
     options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
     {
@@ -117,15 +137,15 @@ authBuilder.AddJwtBearer(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = string.IsNullOrWhiteSpace(builder.Configuration["JwtSettings:Issuer"]) ? "ProyectoIntegrador" : builder.Configuration["JwtSettings:Issuer"],
-        ValidAudience = string.IsNullOrWhiteSpace(builder.Configuration["JwtSettings:Audience"]) ? "ProyectoIntegrador" : builder.Configuration["JwtSettings:Audience"],
+        ValidIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "ProyectoIntegrador",
+        ValidAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "ProyectoIntegrador",
         IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(jwtSecret))
     };
 });
 
 // Register Google only when credentials are provided (avoids runtime validation error when empty)
-var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
-var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+var googleClientId = Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID");
+var googleClientSecret = Environment.GetEnvironmentVariable("GOOGLE_CLIENT_SECRET");
 if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
 {
     authBuilder.AddGoogle(options =>
@@ -174,17 +194,15 @@ try
 {
     using (var scope = app.Services.CreateScope())
     {
-        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-        var connString = configuration.GetConnectionString("DefaultConnection");
-        if (!string.IsNullOrWhiteSpace(connString))
+        if (!string.IsNullOrWhiteSpace(connectionString))
         {
             try
             {
-                var sqlBuilder = new SqlConnectionStringBuilder(connString);
+                var sqlBuilder = new SqlConnectionStringBuilder(connectionString);
                 var targetDb = string.IsNullOrWhiteSpace(sqlBuilder.InitialCatalog) ? "ProyectoIntegradorDb" : sqlBuilder.InitialCatalog;
 
                 // Connect to master to create the DB if it doesn't exist
-                var masterBuilder = new SqlConnectionStringBuilder(connString)
+                var masterBuilder = new SqlConnectionStringBuilder(connectionString)
                 {
                     InitialCatalog = "master"
                 };
