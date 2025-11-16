@@ -12,15 +12,21 @@ public class RAGController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ILogger<RAGController> _logger;
     private readonly string _ragServiceBaseUrl;
+    private readonly Backend.Infrastructure.Repositories.IActividadRepository _actividadRepository;
+    private readonly Backend.Infrastructure.Repositories.ITalentoHumanoRepository _talentoHumanoRepository;
 
     public RAGController(
         IHttpClientFactory httpClientFactory, 
         IConfiguration configuration,
-        ILogger<RAGController> logger)
+        ILogger<RAGController> logger,
+        Backend.Infrastructure.Repositories.IActividadRepository actividadRepository,
+        Backend.Infrastructure.Repositories.ITalentoHumanoRepository talentoHumanoRepository)
     {
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _logger = logger;
+        _actividadRepository = actividadRepository;
+        _talentoHumanoRepository = talentoHumanoRepository;
         _ragServiceBaseUrl = _configuration["RAGService:BaseUrl"] ?? "http://localhost:8001";
     }
 
@@ -298,6 +304,121 @@ public class RAGController : ControllerBase
         {
             _logger.LogError(ex, "Error getting budget suggestions from RAG service");
             return StatusCode(500, new { error = "Error getting budget suggestions", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Genera un plan inicial de asignación de recursos para un conjunto de actividades y recursos.
+    /// </summary>
+    [HttpPost("resources/plan")]
+    public async Task<ActionResult<RAGResourcePlanResponseDto>> PlanResources([FromBody] RAGResourcePlanRequestDto request)
+    {
+        try
+        {
+            if (request.Actividades == null || request.Actividades.Count == 0)
+            {
+                return BadRequest(new { error = "Se requiere al menos una actividad para planificar recursos." });
+            }
+
+            if (request.Recursos == null || request.Recursos.Count == 0)
+            {
+                return BadRequest(new { error = "Se requiere al menos un recurso disponible para planificar." });
+            }
+
+            var client = _httpClientFactory.CreateClient();
+            var jsonContent = JsonContent.Create(request);
+
+            var response = await client.PostAsync($"{_ragServiceBaseUrl}/resources/plan", jsonContent);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("RAG service returned error: {StatusCode} - {Content}", response.StatusCode, errorContent);
+                return StatusCode((int)response.StatusCode, new { error = "Error generating resource plan", details = errorContent });
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<RAGResourcePlanResponseDto>(content, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating resource plan from RAG service");
+            return StatusCode(500, new { error = "Error generating resource plan", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Genera un plan de recursos para un proyecto usando solo el ProjectId.
+    /// El controlador se encarga de obtener actividades y recursos asociados.
+    /// </summary>
+    [HttpPost("projects/{projectId}/resources/plan")]
+    public async Task<ActionResult<RAGResourcePlanResponseDto>> PlanProjectResources(int projectId)
+    {
+        try
+        {
+            // 1. Obtener actividades del proyecto
+            var actividadesDomain = await _actividadRepository.GetByProyectoIdAsync(projectId);
+            if (actividadesDomain == null || actividadesDomain.Count == 0)
+            {
+                return NotFound(new { error = "No se encontraron actividades para el proyecto especificado." });
+            }
+
+            // 2. Mapear actividades a DTOs simples para el RAG
+            var actividadesDto = actividadesDomain.Select(a => new RAGActivityDto
+            {
+                Id = a.ActividadId,
+                Nombre = a.Nombre,
+                Descripcion = a.Descripcion,
+                // Por ahora no tenemos duración ni fechas explícitas en la entidad,
+                // se podrían derivar más adelante si se agregan campos.
+                DuracionDias = null,
+                FechaInicio = null,
+                FechaFin = null,
+                DependenciaIds = new List<int>()
+            }).ToList();
+
+            // 3. Construir una lista básica de recursos a partir de TalentoHumano asociado
+            //    (en el futuro podemos agregar MaterialesInsumos, ServiciosTecnologicos, etc.)
+            var talentoHumano = await _talentoHumanoRepository.GetAllAsync();
+
+            var recursosDto = talentoHumano.Select(th => new RAGResourceDto
+            {
+                Id = th.TalentoHumanoId,
+                Nombre = th.CargoEspecifico,
+                Tipo = "TalentoHumano",
+                // Como costo unitario usamos un aproximado: Total / (Semanas) si es posible
+                CostoUnitario = th.Semanas > 0 ? (double?)(th.Total / th.Semanas) : null,
+                Unidad = "semana",
+                Disponibilidad = th.Semanas
+            }).ToList();
+
+            if (recursosDto.Count == 0)
+            {
+                return NotFound(new { error = "No se encontraron recursos de TalentoHumano para planificar." });
+            }
+
+            // 4. Construir la solicitud para el RAG-Service
+            var request = new RAGResourcePlanRequestDto
+            {
+                ProjectId = projectId,
+                Actividades = actividadesDto,
+                Recursos = recursosDto,
+                Objetivo = "Generar un plan inicial de asignación de talento humano para las actividades del proyecto",
+                PresupuestoMaximo = null // Se puede parametrizar más adelante
+            };
+
+            // 5. Reusar el endpoint existente para planificación genérica
+            return await PlanResources(request);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating project-level resource plan");
+            return StatusCode(500, new { error = "Error generating project-level resource plan", details = ex.Message });
         }
     }
 }
