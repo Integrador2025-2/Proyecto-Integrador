@@ -47,6 +47,8 @@ builder.Services.AddScoped<Backend.Infrastructure.Repositories.ITareaRepository,
 
 // Add services
 builder.Services.AddScoped<Backend.Services.IAuthService, Backend.Services.AuthService>();
+// Usar SMTP para permitir enviar a cualquier email (Gmail con contraseña de aplicación)
+builder.Services.AddScoped<Backend.Services.IEmailService, Backend.Services.SmtpEmailService>();
 
 // Add Redis connection multiplexer
 builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
