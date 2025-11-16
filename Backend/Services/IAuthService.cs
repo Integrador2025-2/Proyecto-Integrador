@@ -6,6 +6,8 @@ namespace Backend.Services;
 public interface IAuthService
 {
     Task<AuthResponseDto> LoginAsync(LoginRequestDto loginRequest);
+    Task<TwoFactorInitResponseDto> InitiateTwoFactorAsync(LoginRequestDto loginRequest);
+    Task<AuthResponseDto> VerifyTwoFactorAsync(TwoFactorVerifyRequestDto verifyRequest);
     Task<AuthResponseDto> RegisterAsync(RegisterRequestDto registerRequest);
     Task<AuthResponseDto> RefreshTokenAsync(string refreshToken);
     Task<AuthResponseDto> GoogleLoginAsync(string googleToken);
