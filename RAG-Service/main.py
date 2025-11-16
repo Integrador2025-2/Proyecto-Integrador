@@ -10,12 +10,15 @@ from services.document_processor import DocumentProcessor
 from services.rag_service import RAGService
 from services.budget_automation import BudgetAutomationService
 from models.schemas import (
-    DocumentUpload, 
-    QueryRequest, 
-    QueryResponse, 
+    DocumentUpload,
+    QueryRequest,
+    QueryResponse,
     BudgetGenerationRequest,
     BudgetGenerationResponse,
-    ProjectDocument
+    ProjectDocument,
+    ResourcePlanRequest,
+    ResourcePlanResponse,
+    ResourceAssignment,
 )
 
 # Cargar variables de entorno
@@ -155,6 +158,35 @@ async def delete_document(document_id: str):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error eliminando documento: {str(e)}")
+
+@app.post("/resources/plan", response_model=ResourcePlanResponse)
+async def plan_resources(request: ResourcePlanRequest):
+    """
+    Generar un plan inicial de asignación de recursos para las actividades proporcionadas.
+
+    Esta versión inicial utiliza una heurística sencilla en el servicio RAG. Más adelante
+    se puede enriquecer con razonamiento avanzado y búsquedas externas de precios/estándares.
+    """
+    try:
+        result = await rag_service.plan_resources(
+            activities=request.actividades,
+            resources=request.recursos,
+            project_id=request.project_id,
+            max_budget=request.presupuesto_maximo,
+        )
+
+        return ResourcePlanResponse(
+            project_id=result.get("project_id"),
+            asignaciones=[
+                ResourceAssignment(**assignment)
+                for assignment in result.get("assignments", [])
+            ],
+            resumen=result.get("summary", ""),
+            criterios_utilizados=result.get("criteria", []),
+            confianza=result.get("confidence", 0.0),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generando plan de recursos: {str(e)}")
 
 @app.get("/projects/{project_id}/budget/suggestions")
 async def get_budget_suggestions(project_id: int, category: str = None):
