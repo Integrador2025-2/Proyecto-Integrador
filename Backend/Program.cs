@@ -64,7 +64,22 @@ builder.Services.AddScoped<Backend.Infrastructure.Repositories.IRecursoRepositor
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IEntidadRepository, Backend.Infrastructure.Repositories.EntidadRepository>();
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.IActXEntidadRepository, Backend.Infrastructure.Repositories.ActXEntidadRepository>();
 builder.Services.AddScoped<Backend.Infrastructure.Repositories.ICronogramaTareaRepository, Backend.Infrastructure.Repositories.CronogramaTareaRepository>();
-// TODO: Add more repositories as needed (RecursoEspecifico types, etc.)
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IRecursoEspecificoRepository, Backend.Infrastructure.Repositories.RecursoEspecificoRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IRubroRepository, Backend.Infrastructure.Repositories.RubroRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IGastosViajeRepository, Backend.Infrastructure.Repositories.GastosViajeRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.ICapacitacionEventosRepository, Backend.Infrastructure.Repositories.CapacitacionEventosRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IMaterialesInsumosRepository, Backend.Infrastructure.Repositories.MaterialesInsumosRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IServiciosTecnologicosRepository, Backend.Infrastructure.Repositories.ServiciosTecnologicosRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IEquiposSoftwareRepository, Backend.Infrastructure.Repositories.EquiposSoftwareRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IDivulgacionRepository, Backend.Infrastructure.Repositories.DivulgacionRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.ISeguimientoEvaluacionRepository, Backend.Infrastructure.Repositories.SeguimientoEvaluacionRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IProteccionConocimientoDivulgacionRepository, Backend.Infrastructure.Repositories.ProteccionConocimientoDivulgacionRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IAdministrativosRepository, Backend.Infrastructure.Repositories.AdministrativosRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.ITalentoHumanoRepository, Backend.Infrastructure.Repositories.TalentoHumanoRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.ITalentoHumanoTareaRepository, Backend.Infrastructure.Repositories.TalentoHumanoTareaRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IRemuneracionPorAnioRepository, Backend.Infrastructure.Repositories.RemuneracionPorAnioRepository>();
+builder.Services.AddScoped<Backend.Infrastructure.Repositories.IContratacionRepository, Backend.Infrastructure.Repositories.ContratacionRepository>();
+// TODO: Add more repositories as needed (specific resource types, etc.)
 
 // Add services
 builder.Services.AddScoped<Backend.Services.IAuthService, Backend.Services.AuthService>();

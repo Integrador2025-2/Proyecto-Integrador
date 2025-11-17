@@ -24,6 +24,7 @@ public class ApplicationDbContext : DbContext
     // Recursos
     public DbSet<Recurso> Recursos { get; set; }
     public DbSet<RecursoEspecifico> RecursosEspecificos { get; set; }
+    public DbSet<Rubro> Rubros { get; set; }
     
     // Tipos específicos de recursos
     public DbSet<TalentoHumano> TalentoHumano { get; set; }
