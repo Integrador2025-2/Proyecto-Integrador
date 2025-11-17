@@ -10,13 +10,13 @@ namespace Backend.Controllers;
 [Authorize]
 public class RAGController : ControllerBase
 {
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<RAGController> _logger;
 
-    public RAGController(HttpClient httpClient, IConfiguration configuration, ILogger<RAGController> logger)
+    public RAGController(IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<RAGController> logger)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _logger = logger;
     }
@@ -37,13 +37,14 @@ public class RAGController : ControllerBase
             }
 
             var ragServiceUrl = GetRAGServiceUrl();
+            var client = _httpClientFactory.CreateClient();
             using var formContent = new MultipartFormDataContent();
             
             formContent.Add(new StreamContent(file.OpenReadStream()), "file", file.FileName);
             formContent.Add(new StringContent(projectId?.ToString() ?? ""), "project_id");
             formContent.Add(new StringContent(documentType), "document_type");
 
-            var response = await _httpClient.PostAsync($"{ragServiceUrl}/documents/upload", formContent);
+            var response = await client.PostAsync($"{ragServiceUrl}/documents/upload", formContent);
             
             if (response.IsSuccessStatusCode)
             {
@@ -70,10 +71,11 @@ public class RAGController : ControllerBase
         try
         {
             var ragServiceUrl = GetRAGServiceUrl();
+            var client = _httpClientFactory.CreateClient();
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync($"{ragServiceUrl}/query", content);
+            var response = await client.PostAsync($"{ragServiceUrl}/query", content);
             
             if (response.IsSuccessStatusCode)
             {
@@ -100,10 +102,11 @@ public class RAGController : ControllerBase
         try
         {
             var ragServiceUrl = GetRAGServiceUrl();
+            var client = _httpClientFactory.CreateClient();
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync($"{ragServiceUrl}/budget/generate", content);
+            var response = await client.PostAsync($"{ragServiceUrl}/budget/generate", content);
             
             if (response.IsSuccessStatusCode)
             {
@@ -130,7 +133,8 @@ public class RAGController : ControllerBase
         try
         {
             var ragServiceUrl = GetRAGServiceUrl();
-            var response = await _httpClient.GetAsync($"{ragServiceUrl}/projects/{projectId}/documents");
+            var client = _httpClientFactory.CreateClient();
+            var response = await client.GetAsync($"{ragServiceUrl}/projects/{projectId}/documents");
             
             if (response.IsSuccessStatusCode)
             {
@@ -157,13 +161,14 @@ public class RAGController : ControllerBase
         try
         {
             var ragServiceUrl = GetRAGServiceUrl();
+            var client = _httpClientFactory.CreateClient();
             var url = $"{ragServiceUrl}/projects/{projectId}/budget/suggestions";
             if (!string.IsNullOrEmpty(category))
             {
                 url += $"?category={category}";
             }
 
-            var response = await _httpClient.GetAsync(url);
+            var response = await client.GetAsync(url);
             
             if (response.IsSuccessStatusCode)
             {
@@ -190,7 +195,8 @@ public class RAGController : ControllerBase
         try
         {
             var ragServiceUrl = GetRAGServiceUrl();
-            var response = await _httpClient.DeleteAsync($"{ragServiceUrl}/documents/{documentId}");
+            var client = _httpClientFactory.CreateClient();
+            var response = await client.DeleteAsync($"{ragServiceUrl}/documents/{documentId}");
             
             if (response.IsSuccessStatusCode)
             {
