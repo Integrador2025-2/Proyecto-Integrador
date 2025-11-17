@@ -96,3 +96,54 @@ public class RAGHealthResponseDto
     public string Status { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
 }
+
+public class RAGActivityDto
+{
+    public int? Id { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string? Descripcion { get; set; }
+    public int? DuracionDias { get; set; }
+    public DateTime? FechaInicio { get; set; }
+    public DateTime? FechaFin { get; set; }
+    public List<int> DependenciaIds { get; set; } = new();
+}
+
+public class RAGResourceDto
+{
+    public int? Id { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string Tipo { get; set; } = string.Empty;
+    public double? CostoUnitario { get; set; }
+    public string? Unidad { get; set; }
+    public double? Disponibilidad { get; set; }
+}
+
+public class RAGResourceAssignmentDto
+{
+    public int? ActividadId { get; set; }
+    public string ActividadNombre { get; set; } = string.Empty;
+    public int? RecursoId { get; set; }
+    public string RecursoNombre { get; set; } = string.Empty;
+    public string RecursoTipo { get; set; } = string.Empty;
+    public double Cantidad { get; set; }
+    public double? CostoEstimado { get; set; }
+    public string? Justificacion { get; set; }
+}
+
+public class RAGResourcePlanRequestDto
+{
+    public int? ProjectId { get; set; }
+    public List<RAGActivityDto> Actividades { get; set; } = new();
+    public List<RAGResourceDto> Recursos { get; set; } = new();
+    public string? Objetivo { get; set; }
+    public double? PresupuestoMaximo { get; set; }
+}
+
+public class RAGResourcePlanResponseDto
+{
+    public int? ProjectId { get; set; }
+    public List<RAGResourceAssignmentDto> Asignaciones { get; set; } = new();
+    public string Resumen { get; set; } = string.Empty;
+    public List<string> CriteriosUtilizados { get; set; } = new();
+    public float Confianza { get; set; }
+}
