@@ -7,6 +7,8 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 from datetime import datetime
 
+from models.schemas import Activity, Resource, ResourceAssignment
+    
 class RAGService:
     """Servicio RAG para búsqueda semántica y generación de respuestas"""
     
@@ -228,6 +230,97 @@ class RAGService:
         
         return chunks
     
+    async def plan_resources(
+        self,
+        activities: List[Activity],
+        resources: List[Resource],
+        project_id: Optional[int] = None,
+        max_budget: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """
+        Generar un plan simple de asignación de recursos basado en actividades y recursos disponibles.
+
+        NOTA: Esta implementación inicial es heurística y simple. Más adelante se puede
+        reemplazar por un razonamiento más avanzado usando LLMs y scraping externo.
+        """
+        assignments: List[ResourceAssignment] = []
+
+        if not activities or not resources:
+            return {
+                "project_id": project_id,
+                "assignments": [],
+                "summary": "No se proporcionaron actividades o recursos para planificar.",
+                "criteria": [
+                    "Validación básica de entrada: se requieren actividades y recursos."
+                ],
+                "confidence": 0.0,
+            }
+
+        # Heurística básica: asignar el primer recurso compatible (por tipo) a cada actividad
+        # y estimar un costo proporcional a la duración si hay datos suficientes.
+        remaining_budget = max_budget if max_budget is not None else None
+
+        for activity in activities:
+            # Seleccionar recurso: por ahora, el primero disponible
+            assigned_resource: Optional[Resource] = None
+            if resources:
+                assigned_resource = resources[0]
+
+            if not assigned_resource:
+                continue
+
+            cantidad = activity.duracion_dias or 1
+            costo_estimado = None
+
+            if assigned_resource.costo_unitario is not None:
+                costo_estimado = assigned_resource.costo_unitario * cantidad
+
+                # Si hay presupuesto máximo, verificar que no se exceda
+                if remaining_budget is not None and costo_estimado > remaining_budget:
+                    # Saltar esta asignación si excede el presupuesto disponible
+                    continue
+
+            if remaining_budget is not None and costo_estimado is not None:
+                remaining_budget -= costo_estimado
+
+            assignments.append(
+                ResourceAssignment(
+                    actividad_id=activity.id,
+                    actividad_nombre=activity.nombre,
+                    recurso_id=assigned_resource.id,
+                    recurso_nombre=assigned_resource.nombre,
+                    recurso_tipo=assigned_resource.tipo,
+                    cantidad=float(cantidad),
+                    costo_estimado=costo_estimado,
+                    justificacion=(
+                        "Asignación heurística inicial basada en el primer recurso disponible."
+                    ),
+                )
+            )
+
+        # Calcular confianza simple basada en porcentaje de actividades con asignación
+        covered_activities = {a.actividad_nombre for a in assignments}
+        coverage_ratio = (
+            len(covered_activities) / len(activities) if activities else 0.0
+        )
+
+        summary = (
+            f"Se generaron asignaciones para {len(assignments)} actividades "
+            f"de un total de {len(activities)}."
+        )
+
+        return {
+            "project_id": project_id,
+            "assignments": [a.dict() for a in assignments],
+            "summary": summary,
+            "criteria": [
+                "Asignación heurística usando el primer recurso disponible.",
+                "Estimación de costo basada en costo_unitario x duración_dias.",
+                "Respeto del presupuesto máximo cuando se proporcionó.",
+            ],
+            "confidence": float(coverage_ratio),
+        }
+
     async def _generate_answer(self, question: str, context_docs: List[str]) -> str:
         """Generar respuesta basada en el contexto de los documentos"""
         if not context_docs:
