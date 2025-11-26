@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.Text.Json;
 using System.Text;
+using MediatR;
+using Backend.Queries.Actividades;
+using Backend.Models.DTOs;
 
 namespace Backend.Controllers;
 
@@ -13,12 +16,18 @@ public class RAGController : ControllerBase
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<RAGController> _logger;
+    private readonly IMediator _mediator;
 
-    public RAGController(IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<RAGController> logger)
+    public RAGController(
+        IHttpClientFactory httpClientFactory, 
+        IConfiguration configuration, 
+        ILogger<RAGController> logger,
+        IMediator mediator)
     {
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _logger = logger;
+        _mediator = mediator;
     }
 
     private string GetRAGServiceUrl()
@@ -101,9 +110,55 @@ public class RAGController : ControllerBase
     {
         try
         {
+            // Si no se proporcionan actividades pero hay un projectId, intentar obtenerlas de la BD
+            if (request.Activities == null || request.Activities.Count == 0)
+            {
+                try
+                {
+                    var actividades = await _mediator.Send(new GetActividadesByProyectoQuery(request.ProjectId));
+                    if (actividades != null && actividades.Count > 0)
+                    {
+                        // Convertir ActividadDto a RAGActivityForBudgetDto
+                        request.Activities = actividades.Select(a => new RAGActivityForBudgetDto
+                        {
+                            ActividadId = a.ActividadId,
+                            Nombre = a.Nombre,
+                            Descripcion = a.Descripcion,
+                            Justificacion = a.Justificacion,
+                            EspecificacionesTecnicas = a.EspecificacionesTecnicas,
+                            CantidadAnios = a.CantidadAnios,
+                            ValorUnitario = a.ValorUnitario,
+                            DuracionDias = null // ActividadDto no tiene duracion_dias directamente
+                        }).ToList();
+                        
+                        _logger.LogInformation("Se obtuvieron {Count} actividades del proyecto {ProjectId} para generación de presupuesto", 
+                            request.Activities.Count, request.ProjectId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "No se pudieron obtener actividades del proyecto {ProjectId}, continuando sin actividades", 
+                        request.ProjectId);
+                }
+            }
+
             var ragServiceUrl = GetRAGServiceUrl();
             var client = _httpClientFactory.CreateClient();
-            var json = JsonSerializer.Serialize(request);
+            
+            // Crear request DTO para el servicio RAG
+            var ragRequest = new RAGBudgetGenerationRequestDto
+            {
+                ProjectId = request.ProjectId,
+                ProjectDescription = request.ProjectDescription,
+                BudgetCategories = request.BudgetCategories,
+                DurationYears = request.DurationYears,
+                Activities = request.Activities
+            };
+            
+            var json = JsonSerializer.Serialize(ragRequest, new JsonSerializerOptions 
+            { 
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
+            });
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await client.PostAsync($"{ragServiceUrl}/budget/generate", content);
@@ -240,4 +295,5 @@ public class BudgetGenerationRequest
         "GastosViaje"
     };
     public int DurationYears { get; set; } = 1;
+    public List<RAGActivityForBudgetDto>? Activities { get; set; } // Lista opcional de actividades
 }

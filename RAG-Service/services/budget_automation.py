@@ -8,12 +8,22 @@ from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
 from .rag_service import RAGService
+from .llm_service import LLMService
 
 class BudgetAutomationService:
     """Servicio para automatización de presupuestos basado en RAG"""
     
     def __init__(self):
         self.rag_service = RAGService()
+        
+        # Inicializar servicio LLM (opcional)
+        try:
+            self.llm_service = LLMService()
+            self.use_llm = True
+        except Exception as e:
+            self.llm_service = None
+            self.use_llm = False
+            print(f"Advertencia: LLM no disponible para generación de presupuestos. Error: {str(e)}")
         
         # Categorías de presupuesto mapeadas a los rubros del sistema
         self.budget_categories = {
@@ -44,9 +54,26 @@ class BudgetAutomationService:
         }
     
     async def generate_budget(self, project_id: int, project_description: str, 
-                           budget_categories: List[str], duration_years: int) -> Dict[str, Any]:
-        """Generar presupuesto automáticamente basado en documentos del proyecto"""
+                           budget_categories: List[str], duration_years: int,
+                           activities: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """
+        Generar presupuesto automáticamente basado en documentos del proyecto y/o actividades
+        
+        Args:
+            project_id: ID del proyecto
+            project_description: Descripción del proyecto
+            budget_categories: Lista de categorías de presupuesto
+            duration_years: Duración del proyecto en años
+            activities: Lista opcional de actividades del proyecto
+        """
         try:
+            # Si hay actividades y LLM disponible, usar generación inteligente con LLM
+            if activities and self.use_llm and self.llm_service:
+                return await self._generate_budget_with_llm(
+                    project_id, project_description, activities, budget_categories, duration_years
+                )
+            
+            # Método tradicional basado en documentos
             # Obtener documentos del proyecto
             project_docs = await self.rag_service.get_project_documents(project_id)
             
@@ -75,6 +102,62 @@ class BudgetAutomationService:
             
         except Exception as e:
             raise Exception(f"Error generando presupuesto: {str(e)}")
+    
+    async def _generate_budget_with_llm(
+        self,
+        project_id: int,
+        project_description: str,
+        activities: List[Dict[str, Any]],
+        budget_categories: List[str],
+        duration_years: int
+    ) -> Dict[str, Any]:
+        """Generar presupuesto usando LLM basado en actividades"""
+        try:
+            # Obtener contexto de documentos del proyecto si están disponibles
+            project_docs_context = None
+            project_docs_count = 0
+            try:
+                project_docs = await self.rag_service.get_project_documents(project_id)
+                if project_docs:
+                    project_docs_count = len(project_docs)
+                    # Combinar contenido de documentos para contexto
+                    project_docs_context = " ".join([
+                        " ".join([chunk["content"] for chunk in doc["chunks"]])
+                        for doc in project_docs[:5]  # Limitar a 5 documentos
+                    ])
+            except:
+                pass
+            
+            # Generar presupuesto con LLM
+            budget_data = await self.llm_service.generate_budget_from_activities(
+                project_description=project_description,
+                activities=activities,
+                project_documents_context=project_docs_context,
+                duration_years=duration_years,
+                budget_categories=budget_categories
+            )
+            
+            # Agregar información adicional
+            budget_data["project_id"] = project_id
+            budget_data["project_description"] = project_description
+            budget_data["duration_years"] = duration_years
+            
+            # Generar archivo Excel
+            excel_path = await self._generate_excel_budget(budget_data, project_id)
+            
+            return {
+                "project_id": project_id,
+                "budget_data": budget_data,
+                "excel_path": excel_path,
+                "generated_at": budget_data.get("generated_at", datetime.now().isoformat()),
+                "confidence_score": budget_data.get("confidence_score", 0.8),
+                "source_documents": project_docs_count,
+                "source_activities": len(activities),
+                "method": "llm_based"
+            }
+            
+        except Exception as e:
+            raise Exception(f"Error generando presupuesto con LLM: {str(e)}")
     
     async def get_budget_suggestions(self, project_id: int, category: str = None) -> List[Dict[str, Any]]:
         """Obtener sugerencias de presupuesto para un proyecto específico"""
