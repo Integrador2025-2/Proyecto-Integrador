@@ -120,20 +120,47 @@ async def query_documents(request: QueryRequest):
 
 @app.post("/budget/generate", response_model=BudgetGenerationResponse)
 async def generate_budget(request: BudgetGenerationRequest):
-    """Generar presupuesto automáticamente basado en documentos de proyecto"""
+    """
+    Generar presupuesto automáticamente basado en documentos de proyecto y/o actividades.
+    
+    Si se proporcionan actividades, el sistema usará LLM para generar un presupuesto inteligente
+    basado en las actividades, considerando precios del mercado colombiano.
+    """
     try:
-        budget_data = await budget_automation.generate_budget(
+        # Convertir actividades a formato de diccionario si están presentes
+        activities_dict = None
+        if request.activities:
+            activities_dict = [
+                {
+                    "actividad_id": act.actividad_id,
+                    "nombre": act.nombre,
+                    "descripcion": act.descripcion,
+                    "justificacion": act.justificacion,
+                    "especificaciones_tecnicas": act.especificaciones_tecnicas,
+                    "cantidad_anios": act.cantidad_anios,
+                    "valor_unitario": act.valor_unitario,
+                    "duracion_dias": act.duracion_dias
+                }
+                for act in request.activities
+            ]
+        
+        budget_result = await budget_automation.generate_budget(
             project_id=request.project_id,
             project_description=request.project_description,
             budget_categories=request.budget_categories,
-            duration_years=request.duration_years
+            duration_years=request.duration_years,
+            activities=activities_dict
         )
         
         return BudgetGenerationResponse(
             project_id=request.project_id,
-            budget_data=budget_data,
-            generated_at=budget_data.get("generated_at"),
-            confidence_score=budget_data.get("confidence_score", 0.0)
+            budget_data=budget_result.get("budget_data", {}),
+            generated_at=budget_result.get("generated_at"),
+            confidence_score=budget_result.get("confidence_score", 0.0),
+            excel_path=budget_result.get("excel_path"),
+            source_documents=budget_result.get("source_documents"),
+            source_activities=budget_result.get("source_activities"),
+            method=budget_result.get("method")
         )
         
     except Exception as e:
