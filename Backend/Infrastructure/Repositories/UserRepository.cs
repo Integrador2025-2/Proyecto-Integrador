@@ -41,6 +41,14 @@ public class UserRepository : IUserRepository
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<User>> GetByRoleIdAsync(int roleId)
+    {
+        return await _context.Users
+            .Include(u => u.Role)
+            .Where(u => u.RoleId == roleId)
+            .ToListAsync();
+    }
+
     public async Task<User> CreateAsync(User user)
     {
         _context.Users.Add(user);

@@ -281,6 +281,35 @@ public class AuthController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// [SOLO DESARROLLO] Login simple sin 2FA para pruebas
+    /// </summary>
+    [HttpPost("dev-login")]
+    public async Task<ActionResult<AuthResponseDto>> DevLogin([FromBody] LoginRequestDto loginRequest)
+    {
+        if (!_authService.GetType().GetMethod("DevLoginAsync", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)?.IsPublic ?? true)
+        {
+            return NotFound("Este endpoint solo está disponible en modo desarrollo");
+        }
+
+        try
+        {
+            var result = await ((dynamic)_authService).DevLoginAsync(loginRequest);
+            _logger.LogInformation("Dev login exitoso para: {Email}", loginRequest.Email);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning("Dev login fallido para {Email}: {Message}", loginRequest.Email, ex.Message);
+            return Unauthorized(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error durante dev login");
+            return StatusCode(500, "Error interno del servidor");
+        }
+    }
+
     #region Helper Methods
 
     private int GetCurrentUserId()
