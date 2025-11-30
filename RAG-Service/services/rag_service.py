@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 
 from models.schemas import Activity, Resource, ResourceAssignment
+from .llm_service import LLMService
     
 class RAGService:
     """Servicio RAG para búsqueda semántica y generación de respuestas"""
@@ -21,6 +22,16 @@ class RAGService:
         
         # Inicializar modelo de embeddings
         self.embedding_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+        
+        # Inicializar servicio LLM (opcional, solo si está configurado)
+        try:
+            self.llm_service = LLMService()
+            self.use_llm = True
+        except Exception as e:
+            # Si no hay API key configurada, usar modo sin LLM
+            self.llm_service = None
+            self.use_llm = False
+            print(f"Advertencia: LLM no disponible. Usando modo básico. Error: {str(e)}")
         
         # Obtener o crear colección
         try:
@@ -238,13 +249,9 @@ class RAGService:
         max_budget: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
-        Generar un plan simple de asignación de recursos basado en actividades y recursos disponibles.
-
-        NOTA: Esta implementación inicial es heurística y simple. Más adelante se puede
-        reemplazar por un razonamiento más avanzado usando LLMs y scraping externo.
+        Generar un plan de asignación de recursos usando LLM si está disponible,
+        o heurística básica como fallback.
         """
-        assignments: List[ResourceAssignment] = []
-
         if not activities or not resources:
             return {
                 "project_id": project_id,
@@ -256,12 +263,85 @@ class RAGService:
                 "confidence": 0.0,
             }
 
-        # Heurística básica: asignar el primer recurso compatible (por tipo) a cada actividad
-        # y estimar un costo proporcional a la duración si hay datos suficientes.
+        # Intentar usar LLM si está disponible
+        if self.use_llm and self.llm_service:
+            try:
+                # Convertir actividades y recursos a diccionarios
+                activities_dict = [
+                    {
+                        "id": a.id,
+                        "nombre": a.nombre,
+                        "descripcion": a.descripcion or "",
+                        "duracion_dias": a.duracion_dias,
+                        "especificaciones_tecnicas": getattr(a, 'especificaciones_tecnicas', '') if hasattr(a, 'especificaciones_tecnicas') else ""
+                    }
+                    for a in activities
+                ]
+                
+                resources_dict = [
+                    {
+                        "id": r.id,
+                        "nombre": r.nombre,
+                        "tipo": r.tipo,
+                        "costo_unitario": r.costo_unitario,
+                        "unidad": r.unidad,
+                        "disponibilidad": r.disponibilidad
+                    }
+                    for r in resources
+                ]
+                
+                # Obtener contexto del proyecto si hay project_id
+                project_context = None
+                if project_id:
+                    try:
+                        project_docs = await self.get_project_documents(project_id)
+                        if project_docs:
+                            project_context = " ".join([
+                                " ".join([chunk["content"] for chunk in doc["chunks"]])
+                                for doc in project_docs[:3]  # Limitar a 3 documentos
+                            ])
+                    except:
+                        pass
+                
+                # Generar plan con LLM
+                plan_result = await self.llm_service.generate_resource_plan(
+                    activities=activities_dict,
+                    resources=resources_dict,
+                    project_context=project_context,
+                    max_budget=max_budget
+                )
+                
+                # Convertir asignaciones a ResourceAssignment
+                assignments = []
+                for assignment_dict in plan_result.get("assignments", []):
+                    assignments.append(ResourceAssignment(
+                        actividad_id=assignment_dict.get("actividad_id"),
+                        actividad_nombre=assignment_dict.get("actividad_nombre", ""),
+                        recurso_id=assignment_dict.get("recurso_id"),
+                        recurso_nombre=assignment_dict.get("recurso_nombre", ""),
+                        recurso_tipo=assignment_dict.get("recurso_tipo", ""),
+                        cantidad=float(assignment_dict.get("cantidad", 0)),
+                        costo_estimado=assignment_dict.get("costo_estimado"),
+                        justificacion=assignment_dict.get("justificacion")
+                    ))
+                
+                return {
+                    "project_id": project_id,
+                    "assignments": [a.dict() for a in assignments],
+                    "summary": plan_result.get("summary", ""),
+                    "criteria": plan_result.get("criteria", []),
+                    "confidence": plan_result.get("confidence", 0.7)
+                }
+                
+            except Exception as e:
+                print(f"Error usando LLM para planificación, usando método básico: {str(e)}")
+                # Continuar con método básico
+        
+        # Método básico (fallback)
+        assignments: List[ResourceAssignment] = []
         remaining_budget = max_budget if max_budget is not None else None
 
         for activity in activities:
-            # Seleccionar recurso: por ahora, el primero disponible
             assigned_resource: Optional[Resource] = None
             if resources:
                 assigned_resource = resources[0]
@@ -275,9 +355,7 @@ class RAGService:
             if assigned_resource.costo_unitario is not None:
                 costo_estimado = assigned_resource.costo_unitario * cantidad
 
-                # Si hay presupuesto máximo, verificar que no se exceda
                 if remaining_budget is not None and costo_estimado > remaining_budget:
-                    # Saltar esta asignación si excede el presupuesto disponible
                     continue
 
             if remaining_budget is not None and costo_estimado is not None:
@@ -298,7 +376,6 @@ class RAGService:
                 )
             )
 
-        # Calcular confianza simple basada en porcentaje de actividades con asignación
         covered_activities = {a.actividad_nombre for a in assignments}
         coverage_ratio = (
             len(covered_activities) / len(activities) if activities else 0.0
@@ -328,28 +405,68 @@ class RAGService:
         
         # Combinar contexto
         context = "\n\n".join(context_docs)
-        
-        # Prompt para generar respuesta
-        prompt = f"""
-        Basándote en la siguiente información de documentos de proyecto, responde la pregunta de manera precisa y útil.
-        
-        Contexto:
-        {context}
-        
-        Pregunta: {question}
-        
-        Respuesta:
-        """
-        
-        # Por ahora, devolver una respuesta simple basada en el contexto
-        # En una implementación completa, aquí usarías un modelo de lenguaje como GPT
+
+        # Detectar si el usuario está pidiendo un resumen del proyecto (para cualquier proyecto)
+        # y construir un prompt de sistema especializado para este tipo de tarea.
+        system_prompt = None
+        q_lower = question.lower()
+
+        if (
+            "resumen" in q_lower
+            or "resumen ejecutivo" in q_lower
+            or "summary" in q_lower
+        ) and ("proyecto" in q_lower or "project" in q_lower):
+            system_prompt = """
+Eres un experto en formulación, evaluación y seguimiento de proyectos (especialmente en ciencia, tecnología, innovación y salud).
+Debes elaborar RESÚMENES EJECUTIVOS COMPLETOS usando EXCLUSIVAMENTE la información disponible en el contexto proporcionado.
+
+INSTRUCCIONES GENERALES:
+- Responde SIEMPRE en español, con tono claro, profesional y bien estructurado.
+- No inventes datos: si algo no aparece en el contexto, indícalo explícitamente.
+- Evita centrarte en detalles administrativos muy específicos (como códigos internos, números de cotización, IDs, etc.) salvo que sean clave para entender el proyecto.
+
+CUANDO TE PIDAN UN RESUMEN DE PROYECTO, INTENTA CUBRIR, SI APARECE EN EL CONTEXTO:
+- Justificación y contexto del problema (por qué existe el proyecto, qué problema aborda, situación actual).
+- Objetivo general y, si están definidos, los objetivos específicos (OE1, OE2, etc.) y los principales indicadores de éxito.
+- Alcance y territorio de intervención (regiones, departamentos, municipios, instituciones o entornos donde se ejecuta).
+- Población objetivo y beneficiarios (número de personas, grupos poblacionales, enfoques diferenciales como género, comunidades étnicas, víctimas del conflicto, etc.).
+- Componentes, ejes o líneas de trabajo principales (por ejemplo: telemedicina, modelos predictivos, biomarcadores, plataformas tecnológicas, apropiación social del conocimiento, formación de talento humano, etc.).
+- Actividades clave y metodología general (qué se hará de manera resumida para lograr los objetivos).
+- Resultados esperados y productos principales (prototipos, publicaciones, políticas públicas, fortalecimiento institucional, etc.).
+- Gobernanza y actores del proyecto (instituciones participantes, equipos, roles relevantes, alianzas, ecosistema de innovación) si la información está disponible.
+- Consideraciones de presupuesto y recursos solo al nivel necesario para entender la magnitud del proyecto, sin entrar en tablas de costos detalladas.
+
+FORMATO DE RESPUESTA:
+- Estructura la respuesta en varios párrafos coherentes (al menos 4–6), organizados lógicamente.
+- Puedes usar subtítulos en negrita (por ejemplo: **Justificación**, **Objetivos**, **Componentes principales**, **Resultados esperados**, etc.).
+- Si un elemento importante no aparece en el contexto, menciona brevemente algo como: "En los documentos proporcionados no se encontró información explícita sobre X".
+"""
+
+        # Usar LLM si está disponible
+        if self.use_llm and self.llm_service:
+            try:
+                return await self.llm_service.generate_answer(
+                    question,
+                    context,
+                    system_prompt=system_prompt,
+                )
+            except Exception as e:
+                # Si falla el LLM, usar método básico como fallback
+                print(f"Error usando LLM, usando método básico: {str(e)}")
+                return self._generate_basic_answer(question, context)
+        else:
+            # Método básico sin LLM
+            return self._generate_basic_answer(question, context)
+    
+    def _generate_basic_answer(self, question: str, context: str) -> str:
+        """Generar respuesta básica sin LLM (fallback)"""
         if "presupuesto" in question.lower() or "costo" in question.lower():
             return self._extract_budget_info(context)
         elif "actividad" in question.lower() or "tarea" in question.lower():
             return self._extract_activity_info(context)
         else:
             # Respuesta genérica basada en el contexto más relevante
-            return context_docs[0][:500] + "..." if len(context_docs[0]) > 500 else context_docs[0]
+            return context[:500] + "..." if len(context) > 500 else context
     
     def _extract_budget_info(self, context: str) -> str:
         """Extraer información de presupuesto del contexto"""

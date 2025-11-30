@@ -1,303 +1,299 @@
 using Microsoft.AspNetCore.Mvc;
-using Backend.Models.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using System.Text.Json;
+using System.Text;
+using MediatR;
+using Backend.Queries.Actividades;
+using Backend.Models.DTOs;
 
 namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class RAGController : ControllerBase
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<RAGController> _logger;
-    private readonly string _ragServiceBaseUrl;
+    private readonly IMediator _mediator;
 
     public RAGController(
         IHttpClientFactory httpClientFactory, 
-        IConfiguration configuration,
-        ILogger<RAGController> logger)
+        IConfiguration configuration, 
+        ILogger<RAGController> logger,
+        IMediator mediator)
     {
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _logger = logger;
-        _ragServiceBaseUrl = _configuration["RAGService:BaseUrl"] ?? "http://localhost:8001";
+        _mediator = mediator;
     }
 
-    /// <summary>
-    /// Verifica el estado del servicio RAG
-    /// </summary>
-    [HttpGet("health")]
-    public async Task<ActionResult<RAGHealthResponseDto>> GetHealth()
+    private string GetRAGServiceUrl()
     {
-        try
-        {
-            var client = _httpClientFactory.CreateClient();
-            var response = await client.GetAsync($"{_ragServiceBaseUrl}/health");
-
-            if (!response.IsSuccessStatusCode)
-            {
-                return StatusCode((int)response.StatusCode, new { error = "RAG service is not available" });
-            }
-
-            var content = await response.Content.ReadAsStringAsync();
-            var healthData = JsonSerializer.Deserialize<RAGHealthResponseDto>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            return Ok(healthData);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error checking RAG service health");
-            return StatusCode(500, new { error = "Error connecting to RAG service", details = ex.Message });
-        }
+        return _configuration["RAGService:BaseUrl"] ?? "http://localhost:8001";
     }
 
-    /// <summary>
-    /// Sube un documento al servicio RAG
-    /// </summary>
     [HttpPost("documents/upload")]
-    public async Task<ActionResult<RAGDocumentUploadResponseDto>> UploadDocument(
-        IFormFile file,
-        [FromForm] int? projectId = null,
-        [FromForm] string documentType = "project_document")
+    public async Task<IActionResult> UploadDocument(IFormFile file, int? projectId = null, string documentType = "project_document")
     {
         try
         {
             if (file == null || file.Length == 0)
             {
-                return BadRequest(new { error = "No file provided" });
+                return BadRequest("No se proporcionó ningún archivo");
             }
 
+            var ragServiceUrl = GetRAGServiceUrl();
             var client = _httpClientFactory.CreateClient();
+            using var formContent = new MultipartFormDataContent();
             
-            using var formData = new MultipartFormDataContent();
-            using var fileStream = file.OpenReadStream();
-            using var fileContent = new StreamContent(fileStream);
-            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
-            formData.Add(fileContent, "file", file.FileName);
+            formContent.Add(new StreamContent(file.OpenReadStream()), "file", file.FileName);
+            formContent.Add(new StringContent(projectId?.ToString() ?? ""), "project_id");
+            formContent.Add(new StringContent(documentType), "document_type");
+
+            var response = await client.PostAsync($"{ragServiceUrl}/documents/upload", formContent);
             
-            if (projectId.HasValue)
+            if (response.IsSuccessStatusCode)
             {
-                formData.Add(new StringContent(projectId.Value.ToString()), "project_id");
+                var content = await response.Content.ReadAsStringAsync();
+                return Ok(JsonSerializer.Deserialize<object>(content));
             }
-            formData.Add(new StringContent(documentType), "document_type");
-
-            var response = await client.PostAsync($"{_ragServiceBaseUrl}/documents/upload", formData);
-
-            if (!response.IsSuccessStatusCode)
+            else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("RAG service returned error: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                return StatusCode((int)response.StatusCode, new { error = "Error uploading document", details = errorContent });
+                _logger.LogError("Error uploading document to RAG service: {Error}", errorContent);
+                return StatusCode((int)response.StatusCode, errorContent);
             }
-
-            var content = await response.Content.ReadAsStringAsync();
-            var result = JsonSerializer.Deserialize<RAGDocumentUploadResponseDto>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error uploading document to RAG service");
-            return StatusCode(500, new { error = "Error uploading document", details = ex.Message });
+            _logger.LogError(ex, "Error uploading document");
+            return StatusCode(500, "Error interno del servidor");
         }
     }
 
-    /// <summary>
-    /// Realiza una consulta semántica sobre los documentos
-    /// </summary>
     [HttpPost("query")]
-    public async Task<ActionResult<RAGQueryResponseDto>> Query([FromBody] RAGQueryRequestDto request)
+    public async Task<IActionResult> QueryDocuments([FromBody] QueryRequest request)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(request.Question))
-            {
-                return BadRequest(new { error = "Question is required" });
-            }
-
+            var ragServiceUrl = GetRAGServiceUrl();
             var client = _httpClientFactory.CreateClient();
-            var jsonContent = JsonContent.Create(request);
-            
-            var response = await client.PostAsync($"{_ragServiceBaseUrl}/query", jsonContent);
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            if (!response.IsSuccessStatusCode)
+            var response = await client.PostAsync($"{ragServiceUrl}/query", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var responseContent = await response.Content.ReadAsStringAsync();
+                return Ok(JsonSerializer.Deserialize<object>(responseContent));
+            }
+            else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("RAG service returned error: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                return StatusCode((int)response.StatusCode, new { error = "Error querying documents", details = errorContent });
+                _logger.LogError("Error querying RAG service: {Error}", errorContent);
+                return StatusCode((int)response.StatusCode, errorContent);
             }
-
-            var content = await response.Content.ReadAsStringAsync();
-            var result = JsonSerializer.Deserialize<RAGQueryResponseDto>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error querying RAG service");
-            return StatusCode(500, new { error = "Error querying documents", details = ex.Message });
+            _logger.LogError(ex, "Error querying documents");
+            return StatusCode(500, "Error interno del servidor");
         }
     }
 
-    /// <summary>
-    /// Genera un presupuesto automáticamente basado en documentos del proyecto
-    /// </summary>
     [HttpPost("budget/generate")]
-    public async Task<ActionResult<RAGBudgetGenerationResponseDto>> GenerateBudget([FromBody] RAGBudgetGenerationRequestDto request)
+    public async Task<IActionResult> GenerateBudget([FromBody] BudgetGenerationRequest request)
     {
         try
         {
-            if (request.ProjectId <= 0)
+            // Si no se proporcionan actividades pero hay un projectId, intentar obtenerlas de la BD
+            if (request.Activities == null || request.Activities.Count == 0)
             {
-                return BadRequest(new { error = "Valid ProjectId is required" });
+                try
+                {
+                    var actividades = await _mediator.Send(new GetActividadesByProyectoQuery(request.ProjectId));
+                    if (actividades != null && actividades.Count > 0)
+                    {
+                        // Convertir ActividadDto a RAGActivityForBudgetDto
+                        request.Activities = actividades.Select(a => new RAGActivityForBudgetDto
+                        {
+                            ActividadId = a.ActividadId,
+                            Nombre = a.Nombre,
+                            Descripcion = a.Descripcion,
+                            Justificacion = a.Justificacion,
+                            EspecificacionesTecnicas = a.EspecificacionesTecnicas,
+                            CantidadAnios = a.CantidadAnios,
+                            ValorUnitario = a.ValorUnitario,
+                            DuracionDias = null // ActividadDto no tiene duracion_dias directamente
+                        }).ToList();
+                        
+                        _logger.LogInformation("Se obtuvieron {Count} actividades del proyecto {ProjectId} para generación de presupuesto", 
+                            request.Activities.Count, request.ProjectId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "No se pudieron obtener actividades del proyecto {ProjectId}, continuando sin actividades", 
+                        request.ProjectId);
+                }
             }
 
-            if (string.IsNullOrWhiteSpace(request.ProjectDescription))
-            {
-                return BadRequest(new { error = "ProjectDescription is required" });
-            }
-
+            var ragServiceUrl = GetRAGServiceUrl();
             var client = _httpClientFactory.CreateClient();
-            var jsonContent = JsonContent.Create(request);
             
-            var response = await client.PostAsync($"{_ragServiceBaseUrl}/budget/generate", jsonContent);
+            // Crear request DTO para el servicio RAG
+            var ragRequest = new RAGBudgetGenerationRequestDto
+            {
+                ProjectId = request.ProjectId,
+                ProjectDescription = request.ProjectDescription,
+                BudgetCategories = request.BudgetCategories,
+                DurationYears = request.DurationYears,
+                Activities = request.Activities
+            };
+            
+            var json = JsonSerializer.Serialize(ragRequest, new JsonSerializerOptions 
+            { 
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
+            });
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            if (!response.IsSuccessStatusCode)
+            var response = await client.PostAsync($"{ragServiceUrl}/budget/generate", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var responseContent = await response.Content.ReadAsStringAsync();
+                return Ok(JsonSerializer.Deserialize<object>(responseContent));
+            }
+            else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("RAG service returned error: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                return StatusCode((int)response.StatusCode, new { error = "Error generating budget", details = errorContent });
+                _logger.LogError("Error generating budget: {Error}", errorContent);
+                return StatusCode((int)response.StatusCode, errorContent);
             }
-
-            var content = await response.Content.ReadAsStringAsync();
-            var result = JsonSerializer.Deserialize<RAGBudgetGenerationResponseDto>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating budget from RAG service");
-            return StatusCode(500, new { error = "Error generating budget", details = ex.Message });
+            _logger.LogError(ex, "Error generating budget");
+            return StatusCode(500, "Error interno del servidor");
         }
     }
 
-    /// <summary>
-    /// Obtiene todos los documentos asociados a un proyecto
-    /// </summary>
     [HttpGet("projects/{projectId}/documents")]
-    public async Task<ActionResult<RAGProjectDocumentsResponseDto>> GetProjectDocuments(int projectId)
+    public async Task<IActionResult> GetProjectDocuments(int projectId)
     {
         try
         {
+            var ragServiceUrl = GetRAGServiceUrl();
             var client = _httpClientFactory.CreateClient();
-            var response = await client.GetAsync($"{_ragServiceBaseUrl}/projects/{projectId}/documents");
-
-            if (!response.IsSuccessStatusCode)
+            var response = await client.GetAsync($"{ragServiceUrl}/projects/{projectId}/documents");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                return Ok(JsonSerializer.Deserialize<object>(content));
+            }
+            else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("RAG service returned error: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                return StatusCode((int)response.StatusCode, new { error = "Error getting project documents", details = errorContent });
+                _logger.LogError("Error getting project documents: {Error}", errorContent);
+                return StatusCode((int)response.StatusCode, errorContent);
             }
-
-            var content = await response.Content.ReadAsStringAsync();
-            var result = JsonSerializer.Deserialize<RAGProjectDocumentsResponseDto>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting project documents from RAG service");
-            return StatusCode(500, new { error = "Error getting project documents", details = ex.Message });
+            _logger.LogError(ex, "Error getting project documents");
+            return StatusCode(500, "Error interno del servidor");
         }
     }
 
-    /// <summary>
-    /// Elimina un documento del servicio RAG
-    /// </summary>
+    [HttpGet("projects/{projectId}/budget/suggestions")]
+    public async Task<IActionResult> GetBudgetSuggestions(int projectId, string? category = null)
+    {
+        try
+        {
+            var ragServiceUrl = GetRAGServiceUrl();
+            var client = _httpClientFactory.CreateClient();
+            var url = $"{ragServiceUrl}/projects/{projectId}/budget/suggestions";
+            if (!string.IsNullOrEmpty(category))
+            {
+                url += $"?category={category}";
+            }
+
+            var response = await client.GetAsync(url);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                return Ok(JsonSerializer.Deserialize<object>(content));
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Error getting budget suggestions: {Error}", errorContent);
+                return StatusCode((int)response.StatusCode, errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting budget suggestions");
+            return StatusCode(500, "Error interno del servidor");
+        }
+    }
+
     [HttpDelete("documents/{documentId}")]
     public async Task<IActionResult> DeleteDocument(string documentId)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(documentId))
-            {
-                return BadRequest(new { error = "DocumentId is required" });
-            }
-
+            var ragServiceUrl = GetRAGServiceUrl();
             var client = _httpClientFactory.CreateClient();
-            var response = await client.DeleteAsync($"{_ragServiceBaseUrl}/documents/{documentId}");
-
-            if (!response.IsSuccessStatusCode)
+            var response = await client.DeleteAsync($"{ragServiceUrl}/documents/{documentId}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                return Ok(JsonSerializer.Deserialize<object>(content));
+            }
+            else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("RAG service returned error: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                return StatusCode((int)response.StatusCode, new { error = "Error deleting document", details = errorContent });
+                _logger.LogError("Error deleting document: {Error}", errorContent);
+                return StatusCode((int)response.StatusCode, errorContent);
             }
-
-            var content = await response.Content.ReadAsStringAsync();
-            return Ok(JsonSerializer.Deserialize<object>(content));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting document from RAG service");
-            return StatusCode(500, new { error = "Error deleting document", details = ex.Message });
+            _logger.LogError(ex, "Error deleting document");
+            return StatusCode(500, "Error interno del servidor");
         }
     }
+}
 
-    /// <summary>
-    /// Obtiene sugerencias de presupuesto para un proyecto específico
-    /// </summary>
-    [HttpGet("projects/{projectId}/budget/suggestions")]
-    public async Task<ActionResult<RAGBudgetSuggestionsResponseDto>> GetBudgetSuggestions(
-        int projectId, 
-        [FromQuery] string? category = null)
+// DTOs para las peticiones
+public class QueryRequest
+{
+    public string Question { get; set; } = string.Empty;
+    public int? ProjectId { get; set; }
+    public int? TopK { get; set; } = 5;
+}
+
+public class BudgetGenerationRequest
+{
+    public int ProjectId { get; set; }
+    public string ProjectDescription { get; set; } = string.Empty;
+    public List<string> BudgetCategories { get; set; } = new List<string>
     {
-        try
-        {
-            var client = _httpClientFactory.CreateClient();
-            var url = $"{_ragServiceBaseUrl}/projects/{projectId}/budget/suggestions";
-            if (!string.IsNullOrWhiteSpace(category))
-            {
-                url += $"?category={Uri.EscapeDataString(category)}";
-            }
-
-            var response = await client.GetAsync(url);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                _logger.LogError("RAG service returned error: {StatusCode} - {Content}", response.StatusCode, errorContent);
-                return StatusCode((int)response.StatusCode, new { error = "Error getting budget suggestions", details = errorContent });
-            }
-
-            var content = await response.Content.ReadAsStringAsync();
-            var result = JsonSerializer.Deserialize<RAGBudgetSuggestionsResponseDto>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting budget suggestions from RAG service");
-            return StatusCode(500, new { error = "Error getting budget suggestions", details = ex.Message });
-        }
-    }
+        "TalentoHumano",
+        "ServiciosTecnologicos",
+        "EquiposSoftware",
+        "MaterialesInsumos",
+        "CapacitacionEventos",
+        "GastosViaje"
+    };
+    public int DurationYears { get; set; } = 1;
+    public List<RAGActivityForBudgetDto>? Activities { get; set; } // Lista opcional de actividades
 }

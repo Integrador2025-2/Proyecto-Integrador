@@ -35,6 +35,18 @@ public class RAGDocumentUploadResponseDto
     public int? ProjectId { get; set; }
 }
 
+public class RAGActivityForBudgetDto
+{
+    public int? ActividadId { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public string? Descripcion { get; set; }
+    public string? Justificacion { get; set; }
+    public string? EspecificacionesTecnicas { get; set; }
+    public int? CantidadAnios { get; set; } = 1;
+    public decimal? ValorUnitario { get; set; }
+    public int? DuracionDias { get; set; }
+}
+
 public class RAGBudgetGenerationRequestDto
 {
     public int ProjectId { get; set; }
@@ -49,6 +61,7 @@ public class RAGBudgetGenerationRequestDto
         "GastosViaje"
     };
     public int DurationYears { get; set; } = 1;
+    public List<RAGActivityForBudgetDto>? Activities { get; set; } // Lista opcional de actividades
 }
 
 public class RAGBudgetGenerationResponseDto
@@ -59,6 +72,8 @@ public class RAGBudgetGenerationResponseDto
     public float ConfidenceScore { get; set; }
     public string? ExcelPath { get; set; }
     public int? SourceDocuments { get; set; }
+    public int? SourceActivities { get; set; }
+    public string? Method { get; set; } // "llm_based" o "document_based"
 }
 
 public class RAGProjectDocumentDto
