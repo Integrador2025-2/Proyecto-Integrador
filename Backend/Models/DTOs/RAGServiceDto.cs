@@ -162,3 +162,35 @@ public class RAGResourcePlanResponseDto
     public List<string> CriteriosUtilizados { get; set; } = new();
     public float Confianza { get; set; }
 }
+
+// DTOs para extracción y guardado de presupuesto
+public class ExtractedBudgetItemDto
+{
+    public string Nombre { get; set; } = string.Empty;
+    public string Rubro { get; set; } = string.Empty; // TalentoHumano, EquiposSoftware, etc.
+    public int Cantidad { get; set; } = 1;
+    public decimal? ValorUnitario { get; set; }
+    public decimal? Total { get; set; }
+    public string? Justificacion { get; set; }
+    public string? EspecificacionesTecnicas { get; set; }
+    public int Periodo { get; set; } = 1;
+    public string? SourceSheet { get; set; }
+    public bool HasBudgetValues { get; set; }
+}
+
+public class SaveExtractedBudgetRequestDto
+{
+    public int ProjectId { get; set; }
+    public int ActividadId { get; set; }  // ID de la actividad a la que pertenece este presupuesto
+    public List<ExtractedBudgetItemDto> Items { get; set; } = new();
+    public string ExtractionMethod { get; set; } = "intelligent_extraction";
+}
+
+public class SaveExtractedBudgetResponseDto
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public int ItemsCreated { get; set; }
+    public Dictionary<string, int> ItemsPerRubro { get; set; } = new();
+    public List<string> Errors { get; set; } = new();
+}
