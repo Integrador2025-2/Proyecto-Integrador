@@ -14,7 +14,7 @@ public class CreateMaterialesInsumosCommandHandler : IRequestHandler<CreateMater
     public CreateMaterialesInsumosCommandHandler(IMaterialesInsumosRepository repo, IMapper mapper) { _repo = repo; _mapper = mapper; }
     public async Task<MaterialesInsumosDto> Handle(CreateMaterialesInsumosCommand request, CancellationToken cancellationToken)
     {
-        var entity = new MaterialesInsumos { RubroId = request.RubroId, Materiales = request.Materiales, Total = request.Total, RagEstado = request.RagEstado, PeriodoNum = request.PeriodoNum, PeriodoTipo = request.PeriodoTipo };
+        var entity = new MaterialesInsumos { RubroId = request.RubroId, Materiales = request.Materiales, Total = request.Total, RagEstado = request.RagEstado, PeriodoNum = request.PeriodoNum, PeriodoTipo = request.PeriodoTipo, ActividadId = request.ActividadId };
         var created = await _repo.CreateAsync(entity);
         return _mapper.Map<MaterialesInsumosDto>(created);
     }

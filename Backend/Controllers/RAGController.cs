@@ -271,6 +271,226 @@ public class RAGController : ControllerBase
             return StatusCode(500, "Error interno del servidor");
         }
     }
+
+    [HttpPost("budget/save-extracted")]
+    public async Task<IActionResult> SaveExtractedBudget([FromBody] SaveExtractedBudgetRequestDto request)
+    {
+        try
+        {
+            var response = new SaveExtractedBudgetResponseDto
+            {
+                Success = true,
+                Message = "Presupuesto guardado exitosamente",
+                ItemsPerRubro = new Dictionary<string, int>()
+            };
+
+            var errors = new List<string>();
+            int totalCreated = 0;
+
+            // Agrupar items por rubro
+            var itemsByRubro = request.Items.GroupBy(i => i.Rubro).ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var (rubro, items) in itemsByRubro)
+            {
+                int createdInRubro = 0;
+
+                try
+                {
+                    switch (rubro)
+                    {
+                        case "TalentoHumano":
+                            createdInRubro = await SaveTalentoHumanoItems(items, request.ActividadId);
+                            break;
+                        case "EquiposSoftware":
+                            createdInRubro = await SaveEquiposSoftwareItems(items, request.ActividadId);
+                            break;
+                        case "ServiciosTecnologicos":
+                            createdInRubro = await SaveServiciosTecnologicosItems(items, request.ActividadId);
+                            break;
+                        case "MaterialesInsumos":
+                            createdInRubro = await SaveMaterialesInsumosItems(items, request.ActividadId);
+                            break;
+                        case "CapacitacionEventos":
+                            createdInRubro = await SaveCapacitacionEventosItems(items, request.ActividadId);
+                            break;
+                        case "GastosViaje":
+                            createdInRubro = await SaveGastosViajeItems(items, request.ActividadId);
+                            break;
+                        default:
+                            errors.Add($"Rubro desconocido: {rubro}");
+                            break;
+                    }
+
+                    response.ItemsPerRubro[rubro] = createdInRubro;
+                    totalCreated += createdInRubro;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error guardando items del rubro {Rubro}", rubro);
+                    errors.Add($"Error en rubro {rubro}: {ex.Message}");
+                }
+            }
+
+            response.ItemsCreated = totalCreated;
+            response.Errors = errors;
+
+            if (totalCreated == 0)
+            {
+                response.Success = false;
+                response.Message = "No se pudo guardar ningún item del presupuesto";
+            }
+            else if (errors.Count > 0)
+            {
+                response.Message = $"Presupuesto guardado parcialmente: {totalCreated} items creados con {errors.Count} errores";
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error guardando presupuesto extraído");
+            return StatusCode(500, new SaveExtractedBudgetResponseDto
+            {
+                Success = false,
+                Message = "Error interno del servidor",
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
+
+    private async Task<int> SaveTalentoHumanoItems(List<ExtractedBudgetItemDto> items, int actividadId)
+    {
+        int created = 0;
+        foreach (var item in items)
+        {
+            var command = new Backend.Commands.TalentoHumano.CreateTalentoHumanoCommand
+            {
+                RubroId = 1, // Asumir ID de rubro - idealmente obtenerlo dinámicamente
+                CargoEspecifico = item.Nombre,
+                Semanas = item.Cantidad,
+                Total = item.Total ?? 0,
+                RagEstado = item.HasBudgetValues ? "extracted" : "generated",
+                PeriodoNum = item.Periodo,
+                PeriodoTipo = "año",
+                ActividadId = actividadId
+            };
+            
+            await _mediator.Send(command);
+            created++;
+        }
+        return created;
+    }
+
+    private async Task<int> SaveEquiposSoftwareItems(List<ExtractedBudgetItemDto> items, int actividadId)
+    {
+        int created = 0;
+        foreach (var item in items)
+        {
+            var command = new Backend.Commands.EquiposSoftware.CreateEquiposSoftwareCommand
+            {
+                RubroId = 2,
+                EspecificacionesTecnicas = item.EspecificacionesTecnicas ?? item.Nombre,
+                Cantidad = item.Cantidad,
+                Total = item.Total ?? 0,
+                RagEstado = item.HasBudgetValues ? "extracted" : "generated",
+                PeriodoNum = item.Periodo,
+                PeriodoTipo = "año"
+                // Nota: EquiposSoftware no tiene ActividadId en el modelo de dominio
+            };
+            
+            await _mediator.Send(command);
+            created++;
+        }
+        return created;
+    }
+
+    private async Task<int> SaveServiciosTecnologicosItems(List<ExtractedBudgetItemDto> items, int actividadId)
+    {
+        int created = 0;
+        foreach (var item in items)
+        {
+            var command = new Backend.Commands.ServiciosTecnologicos.CreateServiciosTecnologicosCommand
+            {
+                RubroId = 3,
+                Descripcion = item.Nombre,
+                Total = item.Total ?? 0,
+                RagEstado = item.HasBudgetValues ? "extracted" : "generated",
+                PeriodoNum = item.Periodo,
+                PeriodoTipo = "año"
+                // Nota: ServiciosTecnologicos no tiene ActividadId en el modelo de dominio
+            };
+            
+            await _mediator.Send(command);
+            created++;
+        }
+        return created;
+    }
+
+    private async Task<int> SaveMaterialesInsumosItems(List<ExtractedBudgetItemDto> items, int actividadId)
+    {
+        int created = 0;
+        foreach (var item in items)
+        {
+            var command = new Backend.Commands.MaterialesInsumos.CreateMaterialesInsumosCommand
+            {
+                RubroId = 4,
+                Materiales = item.Nombre,
+                Total = item.Total ?? 0,
+                RagEstado = item.HasBudgetValues ? "extracted" : "generated",
+                PeriodoNum = item.Periodo,
+                PeriodoTipo = "año",
+                ActividadId = actividadId
+            };
+            
+            await _mediator.Send(command);
+            created++;
+        }
+        return created;
+    }
+
+    private async Task<int> SaveCapacitacionEventosItems(List<ExtractedBudgetItemDto> items, int actividadId)
+    {
+        int created = 0;
+        foreach (var item in items)
+        {
+            var command = new Backend.Commands.CapacitacionEventos.CreateCapacitacionEventosCommand
+            {
+                RubroId = 5,
+                Tema = item.Nombre,
+                Cantidad = item.Cantidad,
+                Total = item.Total ?? 0,
+                RagEstado = item.HasBudgetValues ? "extracted" : "generated",
+                PeriodoNum = item.Periodo,
+                PeriodoTipo = "año",
+                ActividadId = actividadId
+            };
+            
+            await _mediator.Send(command);
+            created++;
+        }
+        return created;
+    }
+
+    private async Task<int> SaveGastosViajeItems(List<ExtractedBudgetItemDto> items, int actividadId)
+    {
+        int created = 0;
+        foreach (var item in items)
+        {
+            var command = new Backend.Commands.GastosViaje.CreateGastosViajeCommand
+            {
+                RubroId = 6,
+                Costo = item.Total ?? 0,
+                RagEstado = item.HasBudgetValues ? "extracted" : "generated",
+                PeriodoNum = item.Periodo,
+                PeriodoTipo = "año",
+                ActividadId = actividadId
+            };
+            
+            await _mediator.Send(command);
+            created++;
+        }
+        return created;
+    }
 }
 
 // DTOs para las peticiones

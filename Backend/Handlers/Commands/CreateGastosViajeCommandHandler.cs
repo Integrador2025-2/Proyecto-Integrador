@@ -14,7 +14,7 @@ public class CreateGastosViajeCommandHandler : IRequestHandler<CreateGastosViaje
     public CreateGastosViajeCommandHandler(IGastosViajeRepository repo, IMapper mapper) { _repo = repo; _mapper = mapper; }
     public async Task<GastosViajeDto> Handle(CreateGastosViajeCommand request, CancellationToken cancellationToken)
     {
-        var entity = new GastosViaje { RubroId = request.RubroId, Costo = request.Costo, RagEstado = request.RagEstado, PeriodoNum = request.PeriodoNum, PeriodoTipo = request.PeriodoTipo };
+        var entity = new GastosViaje { RubroId = request.RubroId, Costo = request.Costo, RagEstado = request.RagEstado, PeriodoNum = request.PeriodoNum, PeriodoTipo = request.PeriodoTipo, ActividadId = request.ActividadId };
         var created = await _repo.CreateAsync(entity);
         return _mapper.Map<GastosViajeDto>(created);
     }

@@ -26,7 +26,8 @@ public class CreateTalentoHumanoCommandHandler : IRequestHandler<CreateTalentoHu
             Total = request.Total,
             RagEstado = request.RagEstado,
             PeriodoNum = request.PeriodoNum,
-            PeriodoTipo = request.PeriodoTipo
+            PeriodoTipo = request.PeriodoTipo,
+            ActividadId = request.ActividadId
         };
 
         var created = await _repo.CreateAsync(entity);

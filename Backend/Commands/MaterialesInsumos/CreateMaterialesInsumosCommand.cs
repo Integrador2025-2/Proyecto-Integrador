@@ -11,4 +11,5 @@ public class CreateMaterialesInsumosCommand : IRequest<MaterialesInsumosDto>
     public string RagEstado { get; set; } = string.Empty;
     public int PeriodoNum { get; set; }
     public string PeriodoTipo { get; set; } = string.Empty;
+    public int? ActividadId { get; set; }
 }
