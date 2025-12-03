@@ -99,6 +99,70 @@ async def upload_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error procesando documento: {str(e)}")
 
+@app.post("/budget/extract-from-file")
+async def extract_budget_from_file(
+    file: UploadFile = File(...),
+    project_id: int = None
+):
+    """
+    Extraer presupuesto y actividades directamente desde un archivo Excel o DOCX.
+    Detecta automáticamente columnas y rubros, y mapea a la estructura del sistema.
+    """
+    try:
+        import tempfile
+        from services.budget_extractor import BudgetExtractor
+        
+        # Validar tipo de archivo
+        allowed_extensions = ['.xlsx', '.xls', '.docx']
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        
+        if file_extension not in allowed_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tipo de archivo no soportado para extracción de presupuesto. Permitidos: {allowed_extensions}"
+            )
+        
+        # Guardar archivo temporal
+        content = await file.read()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Extraer presupuesto
+            extractor = BudgetExtractor()
+            
+            if file_extension in ['.xlsx', '.xls']:
+                extracted = await extractor.extract_from_excel(temp_file_path)
+            elif file_extension == '.docx':
+                extracted = await extractor.extract_from_docx(temp_file_path)
+            else:
+                raise HTTPException(status_code=400, detail="Formato no soportado")
+            
+            # Calcular resumen
+            summary = extractor.calculate_budget_summary(extracted["activities"])
+            
+            return {
+                "message": "Presupuesto extraído exitosamente",
+                "filename": file.filename,
+                "project_id": project_id,
+                "total_activities": extracted["total_activities"],
+                "rubros_found": extracted["rubros_found"],
+                "grouped_by_rubro": {
+                    rubro: len(acts) for rubro, acts in extracted["grouped_by_rubro"].items()
+                },
+                "budget_summary": summary,
+                "activities": extracted["activities"],
+                "extraction_confidence": extracted.get("confidence", 0.0)
+            }
+        
+        finally:
+            # Limpiar archivo temporal
+            os.unlink(temp_file_path)
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error extrayendo presupuesto: {str(e)}")
+
 @app.post("/query", response_model=QueryResponse)
 async def query_documents(request: QueryRequest):
     """Realizar consulta semántica sobre los documentos"""
