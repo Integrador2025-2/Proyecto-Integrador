@@ -16,6 +16,7 @@ public class AuthService : IAuthService
     private readonly IRoleRepository _roleRepository;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthService> _logger;
+    private readonly IEmailService _emailService;
 
     // Redis para almacenamiento de refresh tokens
     private readonly StackExchange.Redis.IDatabase _redisDb;
@@ -25,13 +26,15 @@ public class AuthService : IAuthService
         IRoleRepository roleRepository,
         IConfiguration configuration,
         ILogger<AuthService> logger,
-        StackExchange.Redis.IConnectionMultiplexer redis)
+        StackExchange.Redis.IConnectionMultiplexer redis,
+        IEmailService emailService)
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
         _configuration = configuration;
         _logger = logger;
         _redisDb = redis.GetDatabase();
+        _emailService = emailService;
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginRequestDto loginRequest)
@@ -53,18 +56,142 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Credenciales inválidas");
         }
 
+        // Forzamos 2FA por email: generamos código y token de 2FA, enviamos correo
+        var twoFactorToken = GenerateTwoFactorToken();
+        var code = GenerateNumericCode(6);
+
+        var twoFaInfo = new TwoFactorInfo
+        {
+            UserId = user.Id,
+            Code = code,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(10),
+            Attempts = 0
+        };
+        await _redisDb.StringSetAsync($"twofa:{twoFactorToken}", JsonSerializer.Serialize(twoFaInfo), TimeSpan.FromMinutes(10));
+
+        var masked = MaskEmail(user.Email);
+        var subject = "Tu código de verificación";
+        var body = $"<p>Tu código de verificación es <strong>{code}</strong>. Expira en 10 minutos.</p>";
+        try
+        {
+            await _emailService.SendEmailAsync(user.Email, subject, body);
+        }
+        catch (Exception ex)
+        {
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+            if (env.Equals("Development", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning(ex, "Fallo al enviar correo 2FA en Development. Exponiendo código en logs para pruebas: {Code}", code);
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        // Lanzamos excepción controlada para que el controlador pueda responder adecuadamente si usa LoginAsync directo
+        throw new UnauthorizedAccessException("2FA requerido");
+    }
+
+    public async Task<TwoFactorInitResponseDto> InitiateTwoFactorAsync(LoginRequestDto loginRequest)
+    {
+        var user = await _userRepository.GetByEmailAsync(loginRequest.Email);
+        if (user == null || !user.IsActive)
+        {
+            throw new UnauthorizedAccessException("Credenciales inválidas");
+        }
+        if (user.Provider != "local")
+        {
+            throw new UnauthorizedAccessException("Este usuario se registró con Google. Use el login con Google.");
+        }
+        if (!BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.PasswordHash))
+        {
+            throw new UnauthorizedAccessException("Credenciales inválidas");
+        }
+
+        var twoFactorToken = GenerateTwoFactorToken();
+        var code = GenerateNumericCode(6);
+        var twoFaInfo = new TwoFactorInfo
+        {
+            UserId = user.Id,
+            Code = code,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(10),
+            Attempts = 0
+        };
+        await _redisDb.StringSetAsync($"twofa:{twoFactorToken}", JsonSerializer.Serialize(twoFaInfo), TimeSpan.FromMinutes(10));
+
+        var masked = MaskEmail(user.Email);
+        var subject = "Tu código de verificación";
+        var body = $"<p>Tu código de verificación es <strong>{code}</strong>. Expira en 10 minutos.</p>";
+        try
+        {
+            await _emailService.SendEmailAsync(user.Email, subject, body);
+        }
+        catch (Exception ex)
+        {
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+            if (env.Equals("Development", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning(ex, "Fallo al enviar correo 2FA en Development. Exponiendo código en logs para pruebas: {Code}", code);
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        return new TwoFactorInitResponseDto
+        {
+            TwoFactorRequired = true,
+            TwoFactorToken = twoFactorToken,
+            DeliveryChannel = "email",
+            MaskedDestination = masked
+        };
+    }
+
+    public async Task<AuthResponseDto> VerifyTwoFactorAsync(TwoFactorVerifyRequestDto verifyRequest)
+    {
+        var key = $"twofa:{verifyRequest.TwoFactorToken}";
+        var json = await _redisDb.StringGetAsync(key);
+        if (string.IsNullOrEmpty(json))
+        {
+            throw new UnauthorizedAccessException("Código inválido o expirado");
+        }
+        var info = JsonSerializer.Deserialize<TwoFactorInfo>(json!);
+        if (info == null || info.ExpiresAt < DateTime.UtcNow)
+        {
+            await _redisDb.KeyDeleteAsync(key);
+            throw new UnauthorizedAccessException("Código inválido o expirado");
+        }
+        if (!string.Equals(info.Code, verifyRequest.Code, StringComparison.Ordinal))
+        {
+            info.Attempts += 1;
+            // Persist attempt count but keep original expiry
+            var ttl = await _redisDb.KeyTimeToLiveAsync(key) ?? TimeSpan.FromMinutes(10);
+            await _redisDb.StringSetAsync(key, JsonSerializer.Serialize(info), ttl);
+            throw new UnauthorizedAccessException("Código incorrecto");
+        }
+
+        // Código correcto: emitir tokens y limpiar estado 2FA
+        var user = await _userRepository.GetByIdAsync(info.UserId);
+        if (user == null || !user.IsActive)
+        {
+            await _redisDb.KeyDeleteAsync(key);
+            throw new UnauthorizedAccessException("Usuario no válido");
+        }
+
         var token = GenerateJwtToken(user);
         var refreshToken = GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(GetJwtExpirationMinutes());
 
-        // Store refresh token en Redis
         var tokenInfo = new RefreshTokenInfo
         {
             UserId = user.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             CreatedAt = DateTime.UtcNow
         };
-        _redisDb.StringSet($"refresh_token:{refreshToken}", System.Text.Json.JsonSerializer.Serialize(tokenInfo), TimeSpan.FromDays(7));
+        await _redisDb.StringSetAsync($"refresh_token:{refreshToken}", JsonSerializer.Serialize(tokenInfo), TimeSpan.FromDays(7));
+        await _redisDb.KeyDeleteAsync(key);
 
         return new AuthResponseDto
         {
@@ -116,20 +243,27 @@ public class AuthService : IAuthService
             IsActive = true
         };
 
-        await _userRepository.CreateAsync(user);
+        var createdUser = await _userRepository.CreateAsync(user);
 
-        var token = GenerateJwtToken(user);
+        var token = GenerateJwtToken(createdUser);
         var refreshToken = GenerateRefreshToken();
         var expiresAt = DateTime.UtcNow.AddMinutes(GetJwtExpirationMinutes());
 
         // Store refresh token en Redis
-        var tokenInfo = new RefreshTokenInfo
+        try
         {
-            UserId = user.Id,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            CreatedAt = DateTime.UtcNow
-        };
-        _redisDb.StringSet($"refresh_token:{refreshToken}", System.Text.Json.JsonSerializer.Serialize(tokenInfo), TimeSpan.FromDays(7));
+            var tokenInfo = new RefreshTokenInfo
+            {
+                UserId = createdUser.Id,
+                ExpiresAt = DateTime.UtcNow.AddDays(7),
+                CreatedAt = DateTime.UtcNow
+            };
+            _redisDb.StringSet($"refresh_token:{refreshToken}", System.Text.Json.JsonSerializer.Serialize(tokenInfo), TimeSpan.FromDays(7));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error guardando refresh token en Redis, continuando sin él");
+        }
 
         return new AuthResponseDto
         {
@@ -138,17 +272,17 @@ public class AuthService : IAuthService
             ExpiresAt = expiresAt,
             User = new UserDto
             {
-                Id = user.Id,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Email = user.Email,
-                IsActive = user.IsActive,
-                CreatedAt = user.CreatedAt,
-                UpdatedAt = user.UpdatedAt,
-                RoleId = user.RoleId,
-                RoleName = role.Name,
-                Provider = user.Provider,
-                ProfilePictureUrl = user.ProfilePictureUrl
+                Id = createdUser.Id,
+                FirstName = createdUser.FirstName,
+                LastName = createdUser.LastName,
+                Email = createdUser.Email,
+                IsActive = createdUser.IsActive,
+                CreatedAt = createdUser.CreatedAt,
+                UpdatedAt = createdUser.UpdatedAt,
+                RoleId = createdUser.RoleId,
+                RoleName = createdUser.Role?.Name ?? role.Name,
+                Provider = createdUser.Provider,
+                ProfilePictureUrl = createdUser.ProfilePictureUrl
             }
         };
     }
@@ -403,5 +537,44 @@ public class AuthService : IAuthService
         public string GivenName { get; set; } = string.Empty;
         public string FamilyName { get; set; } = string.Empty;
         public string Picture { get; set; } = string.Empty;
+    }
+
+    private class TwoFactorInfo
+    {
+        public int UserId { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public DateTime ExpiresAt { get; set; }
+        public int Attempts { get; set; }
+    }
+
+    private static string GenerateTwoFactorToken()
+    {
+        var bytes = new byte[24];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(bytes);
+        return Convert.ToBase64String(bytes);
+    }
+
+    private static string GenerateNumericCode(int length)
+    {
+        var rng = RandomNumberGenerator.Create();
+        var digits = new char[length];
+        var buffer = new byte[1];
+        for (int i = 0; i < length; i++)
+        {
+            do { rng.GetBytes(buffer); } while (buffer[0] >= 250);
+            digits[i] = (char)('0' + (buffer[0] % 10));
+        }
+        return new string(digits);
+    }
+
+    private static string MaskEmail(string email)
+    {
+        var atIndex = email.IndexOf('@');
+        if (atIndex <= 1) return "***";
+        var name = email.Substring(0, atIndex);
+        var domain = email.Substring(atIndex);
+        var visible = Math.Min(2, name.Length);
+        return name.Substring(0, visible) + new string('*', Math.Max(0, name.Length - visible)) + domain;
     }
 }

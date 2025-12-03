@@ -46,27 +46,53 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Inicia sesión con email y contraseña
+    /// Inicia el login y envía el código 2FA al email
     /// </summary>
     /// <param name="loginRequest">Credenciales de login</param>
-    /// <returns>Token de autenticación y datos del usuario</returns>
-    [HttpPost("login")]
-    public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginRequestDto loginRequest)
+    /// <returns>Token temporal y destino enmascarado</returns>
+    [HttpPost("login/init")]
+    public async Task<ActionResult<TwoFactorInitResponseDto>> LoginInit([FromBody] LoginRequestDto loginRequest)
     {
         try
         {
-            var result = await _authService.LoginAsync(loginRequest);
-            _logger.LogInformation("Login exitoso para usuario: {Email}", loginRequest.Email);
+            var result = await _authService.InitiateTwoFactorAsync(loginRequest);
+            _logger.LogInformation("2FA iniciado para usuario: {Email}", loginRequest.Email);
             return Ok(result);
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogWarning("Login fallido para {Email}: {Message}", loginRequest.Email, ex.Message);
+            _logger.LogWarning("Inicio de sesión fallido para {Email}: {Message}", loginRequest.Email, ex.Message);
             return Unauthorized(ex.Message);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inesperado durante el login");
+            _logger.LogError(ex, "Error inesperado durante el inicio de 2FA");
+            return StatusCode(500, "Error interno del servidor");
+        }
+    }
+
+    /// <summary>
+    /// Verifica el código 2FA y emite el JWT
+    /// </summary>
+    /// <param name="verifyRequest">Token temporal y código</param>
+    /// <returns>Token de autenticación y datos del usuario</returns>
+    [HttpPost("2fa/verify")]
+    public async Task<ActionResult<AuthResponseDto>> VerifyTwoFactor([FromBody] TwoFactorVerifyRequestDto verifyRequest)
+    {
+        try
+        {
+            var result = await _authService.VerifyTwoFactorAsync(verifyRequest);
+            _logger.LogInformation("2FA verificado correctamente");
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning("Verificación 2FA fallida: {Message}", ex.Message);
+            return Unauthorized(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado durante la verificación 2FA");
             return StatusCode(500, "Error interno del servidor");
         }
     }
