@@ -170,7 +170,7 @@ async def query_documents(request: QueryRequest):
         response = await rag_service.query(
             question=request.question,
             project_id=request.project_id,
-            top_k=request.top_k or 5
+            top_k=request.top_k or 10  # Aumentado de 5 a 10 para más contexto
         )
         
         return QueryResponse(

@@ -106,7 +106,7 @@ def tab_query(project_id_default: int):
             step=1,
             help="0 para no filtrar por proyecto.",
         )
-        top_k = st.slider("Top K (número de chunks)", min_value=1, max_value=20, value=8)
+        top_k = st.slider("Top K (número de chunks)", min_value=50, max_value=100, value=50)
 
     if st.button("Ejecutar consulta RAG", type="primary"):
         if not question.strip():
