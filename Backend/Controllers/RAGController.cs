@@ -498,7 +498,7 @@ public class QueryRequest
 {
     public string Question { get; set; } = string.Empty;
     public int? ProjectId { get; set; }
-    public int? TopK { get; set; } = 5;
+    public int? TopK { get; set; } = 10; // Aumentado de 5 a 10 para más contexto
 }
 
 public class BudgetGenerationRequest

@@ -34,8 +34,13 @@ LLM_PROVIDER=gemini
 # Tu API Key de Gemini
 GEMINI_API_KEY=AIzaSy_tu_api_key_aqui
 
-# Modelo a usar (gemini-1.5-flash-latest es el más rápido y gratuito)
-GEMINI_MODEL=gemini-1.5-flash-latest
+# Modelo a usar (gemini-1.5-pro-latest recomendado para respuestas largas y detalladas)
+GEMINI_MODEL=gemini-1.5-pro-latest
+
+# Tokens máximos de salida (8192 es el máximo para respuestas muy largas)
+GEMINI_MAX_OUTPUT_TOKENS=8192
+GEMINI_MAX_OUTPUT_TOKENS_BUDGET=8192
+GEMINI_MAX_OUTPUT_TOKENS_PLAN=8192
 ```
 
 ### Paso 4: Reiniciar el servicio
@@ -57,17 +62,20 @@ python main.py
 
 ## Modelos Disponibles
 
-### Gemini 1.5 Flash (Recomendado para este proyecto)
+### Gemini 1.5 Pro (Recomendado para respuestas largas y detalladas) ⭐
+- **Velocidad**: Rápida (ligeramente más lenta que Flash)
+- **Capacidad**: Mayor precisión, contexto más largo, respuestas más completas
+- **Costo**: Gratuito hasta los límites (menor RPM que Flash)
+- **Uso**: Ideal para respuestas exhaustivas, resúmenes detallados y análisis completos
+- **Nombre**: `gemini-1.5-pro-latest` o `gemini-1.5-pro`
+- **Tokens de salida**: Hasta 8,192 tokens (respuestas muy largas)
+
+### Gemini 1.5 Flash (Rápido y eficiente)
 - **Velocidad**: Muy rápida
 - **Costo**: Gratuito hasta los límites
-- **Uso**: Ideal para generación de presupuestos y respuestas rápidas
+- **Uso**: Ideal para respuestas rápidas y generación de presupuestos
 - **Nombre**: `gemini-1.5-flash-latest` o `gemini-1.5-flash`
-
-### Gemini 1.5 Pro
-- **Velocidad**: Más lenta
-- **Capacidad**: Mayor precisión y contexto más largo
-- **Costo**: Gratuito hasta los límites (menor RPM)
-- **Nombre**: `gemini-1.5-pro-latest` o `gemini-1.5-pro`
+- **Tokens de salida**: Hasta 8,192 tokens
 
 ### Gemini Pro (Legacy - siempre disponible)
 - **Velocidad**: Rápida
