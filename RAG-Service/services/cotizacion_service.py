@@ -122,60 +122,247 @@ class CotizacionService:
 
     async def _leer_y_validar_excel(self, file_path: str) -> List[Dict[str, Any]]:
         """
-        Lee solo la hoja '02. Equipos y Software' y salta encabezados hasta encontrar ACTIVIDAD.
+        Lee todas las hojas del Excel que contengan las columnas mínimas:
+        ACTIVIDAD, CANTIDAD, VALOR UNITARIO.
+        
+        Ignora hojas que no tengan esas columnas (como "RESUMEN", "Portada", etc.).
+        Devuelve una lista plana de ítems con el campo 'hoja_origen'.
         """
+        excel_file = None
         try:
-            # 1. Leer solo la hoja que SÍ tiene los datos
-            df_raw = pd.read_excel(
-                file_path, sheet_name="02. Equipos y Software", header=None)
-
-            # 2. Buscar fila que contenga "ACTIVIDAD" y "CANTIDAD" como encabezado
-            header_idx = None
-            for idx, row in df_raw.iterrows():
-                valores = [str(c).strip().lower()
-                           for c in row.values if pd.notna(c)]
-                if "actividad" in valores and "cantidad" in valores:
-                    header_idx = idx
-                    break
-
-            if header_idx is None:
+            # 1. Obtener todas las hojas del Excel
+            excel_file = pd.ExcelFile(file_path)
+            sheet_names = excel_file.sheet_names
+            
+            logger.info(f"Hojas encontradas en el Excel: {', '.join(sheet_names)}")
+            
+            todos_los_items = []
+            
+            # 2. Iterar sobre cada hoja
+            for sheet_name in sheet_names:
+                try:
+                    # 2.1. Leer la hoja sin encabezado para buscar la fila de inicio
+                    df_raw = pd.read_excel(excel_file, sheet_name=sheet_name, header=None)
+                    
+                    # 2.2. Buscar fila que contenga "ACTIVIDAD", "CANTIDAD" y "VALOR UNITARIO"
+                    header_idx = None
+                    for idx, row in df_raw.iterrows():
+                        valores = [str(c).strip().lower() for c in row.values if pd.notna(c)]
+                        # Verificar que tenga las tres columnas requeridas
+                        tiene_actividad = any("actividad" in v for v in valores)
+                        tiene_cantidad = any("cantidad" in v for v in valores)
+                        tiene_valor_unitario = any("valor unitario" in v or "v. unitario" in v or "costo unitario" in v or "precio unitario" in v for v in valores)
+                        
+                        if tiene_actividad and tiene_cantidad and tiene_valor_unitario:
+                            header_idx = idx
+                            break
+                    
+                    # 2.3. Si no se encontró la fila de encabezados, ignorar esta hoja
+                    if header_idx is None:
+                        logger.info(f"Hoja '{sheet_name}' ignorada: no tiene columnas válidas.")
+                        continue
+                    
+                    # 2.4. Re-leer con el encabezado correcto
+                    df = pd.read_excel(excel_file, sheet_name=sheet_name, header=header_idx)
+                    
+                    # 2.5. Normalizar nombres de columnas
+                    df.columns = df.columns.str.strip().str.upper()
+                    
+                    # 2.6. Validar columnas mínimas requeridas
+                    req = ["ACTIVIDAD", "CANTIDAD", "VALOR UNITARIO"]
+                    faltan = [c for c in req if c not in df.columns]
+                    if faltan:
+                        logger.info(f"Hoja '{sheet_name}' ignorada: faltan columnas {', '.join(faltan)}.")
+                        continue
+                    
+                    # 2.7. Buscar columna de descripción/ítem (puede tener diferentes nombres)
+                    item_col = None
+                    
+                    # Columnas a excluir (números, índices, totales, etc.)
+                    columnas_excluidas = req + [
+                        "VALOR TOTAL", "TOTAL", "SUBTOTAL", "JUSTIFICACIÓN", "JUSTIFICACION",
+                        "NÚMERO", "NUMERO", "NRO", "NO", "#", "ÍTEM", "ITEM", "ID"
+                    ]
+                    
+                    # Palabras clave para identificar columnas de descripción
+                    keywords_descripcion = [
+                        "descripción", "descripcion", "desc", "concepto", "producto", 
+                        "servicio", "nombre", "detalle", "especificación", "especificacion",
+                        "equipos", "materiales", "talento", "servicios", "gastos", "viaje",
+                        "capacitacion", "capacitación", "cadena"
+                    ]
+                    
+                    # Palabras clave a evitar (columnas que son números o índices)
+                    keywords_a_evitar = ["número", "numero", "nro", "no", "#", "id", "índice", "indice"]
+                    
+                    # Primero buscar coincidencia exacta (prioridad más alta)
+                    posibles_nombres_item = [
+                        "EQUIPOS Y SOFTWARE (DESCRIPCIÓN)",
+                        "MATERIALES E INSUMOS (DESCRIPCIÓN)",
+                        "TALENTO HUMANO (CARGO ESPECIFICO)",
+                        "SERVICIOS TECNOLÓGICOS (DESCRIPCIÓN)",
+                        "GASTOS DE VIAJE (DESCRIPCIÓN)",
+                        "CAPACITACIÓN Y EVENTOS (DESCRIPCIÓN)",
+                        "CADENAS DE VALOR (DESCRIPCIÓN)",
+                        "DESCRIPCIÓN", "DESCRIPCION", "CONCEPTO", "PRODUCTO", "SERVICIO"
+                    ]
+                    for nombre in posibles_nombres_item:
+                        if nombre in df.columns:
+                            item_col = nombre
+                            break
+                    
+                    # Si no se encuentra exacta, buscar por palabras clave (coincidencia parcial)
+                    if item_col is None:
+                        columnas_candidatas = []
+                        for col in df.columns:
+                            col_lower = str(col).lower()
+                            
+                            # Excluir columnas que no queremos
+                            if col in columnas_excluidas:
+                                continue
+                            
+                            # Excluir columnas que parezcan números o índices
+                            if any(keyword in col_lower for keyword in keywords_a_evitar):
+                                continue
+                            
+                            if str(col).strip().isdigit() or col_lower.startswith("unnamed"):
+                                continue
+                            
+                            # Verificar si la columna contiene alguna palabra clave de descripción
+                            if any(keyword in col_lower for keyword in keywords_descripcion):
+                                columnas_candidatas.append((col, 1))  # Prioridad alta
+                            else:
+                                # Si no tiene palabras clave pero tampoco es numérica, es candidata con menor prioridad
+                                columnas_candidatas.append((col, 0))
+                        
+                        if columnas_candidatas:
+                            # Ordenar por prioridad y luego por longitud (columnas más largas suelen ser descripciones)
+                            columnas_candidatas.sort(key=lambda x: (x[1], len(str(x[0]))), reverse=True)
+                            item_col = columnas_candidatas[0][0]
+                    
+                    # Si aún no se encuentra, buscar la primera columna que no sea numérica ni requerida
+                    if item_col is None:
+                        otras_columnas = [
+                            c for c in df.columns 
+                            if c not in columnas_excluidas
+                            and not str(c).strip().isdigit()
+                            and not str(c).lower().startswith("unnamed")
+                            and not any(keyword in str(c).lower() for keyword in keywords_a_evitar)
+                        ]
+                        if otras_columnas:
+                            # Priorizar columnas que tengan más texto (probablemente descripciones)
+                            otras_columnas.sort(key=lambda x: len(str(x)), reverse=True)
+                            item_col = otras_columnas[0]
+                        else:
+                            item_col = "ACTIVIDAD"  # Fallback: usar ACTIVIDAD como descripción
+                    
+                    logger.debug(f"Hoja '{sheet_name}': usando columna '{item_col}' para descripción de ítems.")
+                    
+                    # 2.8. Filtrar solo filas con cantidad y valor válidos
+                    df = df.dropna(subset=["CANTIDAD", "VALOR UNITARIO"])
+                    df = df[pd.to_numeric(df["CANTIDAD"], errors="coerce") > 0]
+                    df = df[pd.to_numeric(df["VALOR UNITARIO"], errors="coerce") > 0]
+                    
+                    # 2.9. Filtrar filas que no sean ítems válidos (ignorar totales, subtotales, etc.)
+                    df = df[~df["ACTIVIDAD"].astype(str).str.lower().str.contains("|".join(self.ignore_keywords), na=False, regex=True)]
+                    
+                    if df.empty:
+                        logger.info(f"Hoja '{sheet_name}': no se encontraron ítems válidos después del filtrado.")
+                        continue
+                    
+                    # 2.10. Mapear a formato estándar y agregar hoja_origen
+                    items_hoja = []
+                    for idx, row in df.iterrows():
+                        actividad = str(row["ACTIVIDAD"]).strip() if pd.notna(row["ACTIVIDAD"]) else ""
+                        
+                        # Extraer descripción del ítem de la columna correspondiente
+                        item_desc = ""
+                        if item_col in row.index:
+                            item_valor = row[item_col]
+                            if pd.notna(item_valor):
+                                item_desc = str(item_valor).strip()
+                        
+                        # Si no hay descripción o es solo un número, buscar en otras columnas
+                        if not item_desc or (item_desc.isdigit() and len(item_desc) < 5):
+                            # Buscar en otras columnas que no sean numéricas ni requeridas
+                            columnas_alternativas = [
+                                c for c in df.columns 
+                                if c not in req + ["VALOR TOTAL", "TOTAL", "SUBTOTAL", "JUSTIFICACIÓN", "JUSTIFICACION"]
+                                and c != item_col
+                                and not str(c).strip().isdigit()
+                                and not str(c).lower().startswith("unnamed")
+                            ]
+                            
+                            for col_alt in columnas_alternativas:
+                                if col_alt in row.index:
+                                    valor_alt = row[col_alt]
+                                    if pd.notna(valor_alt):
+                                        valor_alt_str = str(valor_alt).strip()
+                                        # Si tiene texto significativo (más de 3 caracteres y no es solo número)
+                                        if len(valor_alt_str) > 3 and not (valor_alt_str.replace(".", "").replace(",", "").isdigit()):
+                                            item_desc = valor_alt_str
+                                            break
+                        
+                        # Si aún no hay descripción o es solo un número, usar la actividad
+                        if not item_desc or (item_desc.isdigit() and len(item_desc) < 5):
+                            item_desc = actividad
+                        
+                        # Si aún no hay descripción válida, saltar esta fila
+                        if not item_desc:
+                            continue
+                        
+                        cantidad = pd.to_numeric(row["CANTIDAD"], errors="coerce")
+                        valor_unitario = pd.to_numeric(row["VALOR UNITARIO"], errors="coerce")
+                        
+                        # Validar que sean valores válidos
+                        if pd.isna(cantidad) or pd.isna(valor_unitario) or cantidad <= 0 or valor_unitario <= 0:
+                            continue
+                        
+                        valor_total = cantidad * valor_unitario
+                        
+                        item = {
+                            "actividad": actividad,
+                            "item": item_desc,
+                            "cantidad": float(cantidad),
+                            "valor_unitario": float(valor_unitario),
+                            "valor_total": float(valor_total),
+                            "hoja_origen": sheet_name
+                        }
+                        
+                        items_hoja.append(item)
+                    
+                    if items_hoja:
+                        todos_los_items.extend(items_hoja)
+                        logger.info(f"Hoja '{sheet_name}': {len(items_hoja)} ítems válidos extraídos.")
+                    else:
+                        logger.info(f"Hoja '{sheet_name}': no se encontraron ítems válidos.")
+                        
+                except Exception as e:
+                    logger.warning(f"Error procesando hoja '{sheet_name}': {str(e)}. Continuando con la siguiente hoja.")
+                    continue
+            
+            # 3. Validar que se encontraron ítems
+            if not todos_los_items:
                 raise ValueError(
-                    "No se encontró la fila de encabezados con ACTIVIDAD y CANTIDAD.")
-
-            # 3. Re-leer con el encabezado correcto
-            df = pd.read_excel(
-                file_path, sheet_name="02. Equipos y Software", header=header_idx)
-
-            # 4. Normalizar nombres de columnas
-            df.columns = df.columns.str.strip().str.upper()
-
-            # 5. Validar columnas mínimas
-            req = ["ACTIVIDAD", "CANTIDAD", "VALOR UNITARIO"]
-            faltan = [c for c in req if c not in df.columns]
-            if faltan:
-                raise ValueError(f"Faltan columnas: {', '.join(faltan)}")
-
-             # 6. Filtrar solo filas con cantidad y valor válidos
-            df = df.dropna(subset=["CANTIDAD", "VALOR UNITARIO"])
-            df = df[pd.to_numeric(df["CANTIDAD"], errors="coerce") > 0]
-            df = df[pd.to_numeric(df["VALOR UNITARIO"], errors="coerce") > 0]
-
-            # 7. Mapear a formato estándar
-            df = df.rename(columns={
-                "ACTIVIDAD": "actividad",
-                "EQUIPOS Y SOFTWARE (DESCRIPCIÓN)": "item",
-                "CANTIDAD": "cantidad",
-                "VALOR UNITARIO": "valor_unitario"
-            })
-            df["valor_total"] = df["cantidad"] * df["valor_unitario"]
-
-            return df[["actividad", "item", "cantidad", "valor_unitario", "valor_total"]].to_dict(orient="records")
+                    "No se encontraron ítems válidos en ninguna hoja del archivo Excel. "
+                    "Asegúrate de que al menos una hoja contenga las columnas: ACTIVIDAD, CANTIDAD, VALOR UNITARIO."
+                )
+            
+            logger.info(f"Total de ítems extraídos de todas las hojas: {len(todos_los_items)}")
+            return todos_los_items
 
         except ValueError:
             raise
         except Exception as e:
             logger.error(f"Error leyendo Excel: {str(e)}")
-        raise ValueError(f"Error procesando el archivo Excel: {str(e)}")
+            raise ValueError(f"Error procesando el archivo Excel: {str(e)}")
+        finally:
+            # Cerrar el archivo Excel explícitamente para liberar el recurso
+            if excel_file is not None:
+                try:
+                    excel_file.close()
+                except Exception as e:
+                    logger.warning(f"Error cerrando archivo Excel: {str(e)}")
 
     async def _encontrar_fila_inicio_datos(self, excel_file: pd.ExcelFile, sheet_name: str) -> Optional[int]:
         """
