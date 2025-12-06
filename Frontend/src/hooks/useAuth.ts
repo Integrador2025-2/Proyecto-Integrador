@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authServiceMock } from '../mocks/auth.service.mock'
-import { authService } from '../services/AuthService'
+import { authService } from '../services/auth.service'
 import { useAuthStore } from '../store/authStore'
 import type { User, TwoFactorInitResponse, AuthResponse } from '../types'
 
