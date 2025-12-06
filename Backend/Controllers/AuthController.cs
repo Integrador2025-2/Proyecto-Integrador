@@ -155,7 +155,6 @@ public class AuthController : ControllerBase
     /// <param name="refreshTokenRequest">Refresh token a invalidar</param>
     /// <returns>Resultado del logout</returns>
     [HttpPost("logout")]
-    [Authorize]
     public async Task<ActionResult> Logout([FromBody] RefreshTokenRequestDto refreshTokenRequest)
     {
         try
@@ -181,7 +180,6 @@ public class AuthController : ControllerBase
     /// <param name="changePasswordRequest">Datos para cambio de contraseña</param>
     /// <returns>Resultado del cambio de contraseña</returns>
     [HttpPost("change-password")]
-    [Authorize]
     public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordRequestDto changePasswordRequest)
     {
         try
@@ -219,7 +217,6 @@ public class AuthController : ControllerBase
     /// </summary>
     /// <returns>Datos del usuario actual</returns>
     [HttpGet("me")]
-    [Authorize]
     public ActionResult<UserDto> GetCurrentUser()
     {
         try

@@ -8,7 +8,6 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/talentohumanotareas")]
-[Authorize]
 public class TalentoHumanoTareasController : ControllerBase
 {
     private readonly IMediator _mediator;
