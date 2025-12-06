@@ -1,16 +1,9 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { PrivateRoute } from '../components/auth/PrivateRoute'
-import { LoginPage } from '../pages/auth/LoginPage'
-import { RegisterPage } from '../pages/auth/RegisterPage'
-import { GoogleCallback } from '../pages/auth/GoogleCallback'
-import { UnauthorizedPage } from '../pages/auth/UnauthorizedPage'
-import { Layout } from '../components/layout'
-import { Home } from '../pages/Home'
-
-// Importar páginas futuras (por ahora comentadas hasta que se creen)
-// import { ProjectsPage } from '../pages/projects/ProjectsPage';
-// import { ProjectDetailPage } from '../pages/projects/ProjectDetailPage';
-// import { CreateProjectPage } from '../pages/projects/CreateProjectPage';
+import ProtectedRoute from '../components/ProtectedRoute'
+import MainLayout from '../components/layout/MainLayout'
+import LoginPage from '../pages/auth/LoginPage'
+import DashboardPage from '../pages/Dashboard/DashboardPage'
+import ProjectsPage from '../pages/Projects/ProjectsPage'
 
 export const router = createBrowserRouter([
     {
@@ -18,56 +11,26 @@ export const router = createBrowserRouter([
         element: <LoginPage />,
     },
     {
-        path: '/register',
-        element: <RegisterPage />,
-    },
-    {
-        path: '/auth/google/callback',
-        element: <GoogleCallback />,
-    },
-    {
-        path: '/unauthorized',
-        element: <UnauthorizedPage />,
-    },
-    {
         path: '/',
-        element: <PrivateRoute />,
+        element: (
+            <ProtectedRoute>
+                <MainLayout />
+            </ProtectedRoute>
+        ),
         children: [
             {
-                path: '/',
-                element: <Layout />,
-                children: [
-                    {
-                        index: true,
-                        element: <Home />,
-                    },
-                    // Rutas futuras de proyectos
-                    // {
-                    //   path: 'projects',
-                    //   element: <ProjectsPage />,
-                    // },
-                    // {
-                    //   path: 'projects/:id',
-                    //   element: <ProjectDetailPage />,
-                    // },
-                    // {
-                    //   path: 'projects/new',
-                    //   element: <CreateProjectPage />,
-                    // },
-
-                    // Rutas solo para administradores
-                    // {
-                    //   path: 'admin',
-                    //   element: <PrivateRoute requiredRoles={['Administrador']} />,
-                    //   children: [
-                    //     {
-                    //       path: 'users',
-                    //       element: <UsersManagementPage />,
-                    //     },
-                    //   ],
-                    // },
-                ],
+                index: true,
+                element: <Navigate to="/dashboard" replace />,
             },
+            {
+                path: 'dashboard',
+                element: <DashboardPage />,
+            },
+            {
+                path: 'projects',
+                element: <ProjectsPage />,
+            },
+            // Aquí irán las demás rutas: projects/:id, activities, team, etc.
         ],
     },
     {
