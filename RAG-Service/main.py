@@ -5,11 +5,15 @@ from typing import List, Optional, Dict, Any
 import os
 from dotenv import load_dotenv
 import uvicorn
+import logging
 
 from services.document_processor import DocumentProcessor
 from services.rag_service import RAGService
 from services.budget_automation import BudgetAutomationService
 from services.cotizacion_service import CotizacionService
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 from models.schemas import (
     DocumentUpload,
     QueryRequest,
@@ -225,21 +229,28 @@ async def generar_cotizacion(
         finally:
             # Limpiar archivo temporal (asegurarse de que esté cerrado)
             if temp_file_path and os.path.exists(temp_file_path):
-                try:
-                    # Pequeña pausa para asegurar que el archivo esté cerrado
-                    import time
-                    time.sleep(0.1)
-                    os.unlink(temp_file_path)
-                except PermissionError:
-                    # Si aún está en uso, intentar de nuevo después de un momento
-                    import time
-                    time.sleep(0.5)
+                import time
+                import gc
+                
+                # Forzar recolección de basura para liberar referencias al archivo
+                gc.collect()
+                
+                # Intentar eliminar el archivo con varios reintentos
+                max_retries = 3
+                for attempt in range(max_retries):
                     try:
+                        time.sleep(0.2 * (attempt + 1))  # Esperar progresivamente más tiempo
                         os.unlink(temp_file_path)
+                        break  # Éxito, salir del loop
+                    except PermissionError:
+                        if attempt < max_retries - 1:
+                            logger.debug(f"Intento {attempt + 1} falló al eliminar archivo temporal, reintentando...")
+                            continue
+                        else:
+                            logger.warning(f"No se pudo eliminar archivo temporal {temp_file_path} después de {max_retries} intentos. El archivo puede quedar en el sistema temporal.")
                     except Exception as e:
-                        logger.warning(f"No se pudo eliminar archivo temporal {temp_file_path}: {str(e)}")
-                except Exception as e:
-                    logger.warning(f"Error eliminando archivo temporal {temp_file_path}: {str(e)}")
+                        logger.warning(f"Error eliminando archivo temporal {temp_file_path}: {str(e)}")
+                        break
     
     except ValueError as e:
         # Errores de validación (columnas faltantes, ítems inválidos)
