@@ -49,6 +49,27 @@ public class UserRepository : IUserRepository
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<User>> GetByFilterAsync(bool? isActive, string? searchTerm)
+    {
+        var query = _context.Users.Include(u => u.Role).AsQueryable();
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(u => u.IsActive == isActive.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var lowerSearchTerm = searchTerm.ToLower();
+            query = query.Where(u =>
+                u.FirstName.ToLower().Contains(lowerSearchTerm) ||
+                u.LastName.ToLower().Contains(lowerSearchTerm) ||
+                u.Email.ToLower().Contains(lowerSearchTerm));
+        }
+
+        return await query.ToListAsync();
+    }
+
     public async Task<User> CreateAsync(User user)
     {
         _context.Users.Add(user);
