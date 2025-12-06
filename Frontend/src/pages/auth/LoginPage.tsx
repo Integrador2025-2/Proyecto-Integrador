@@ -1,174 +1,197 @@
-import { useState, FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Label } from '../../components/ui/label'
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from '../../components/ui/card'
-import { Alert, AlertDescription } from '../../components/ui/alert'
 
-export const LoginPage = () => {
+type LoginState = 'credentials' | 'verification'
+
+export default function LoginPage() {
     const navigate = useNavigate()
-    const { login, isLoading } = useAuth()
+    const { initLogin, verifyTwoFactor, isLoading, error } = useAuth()
 
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
-    })
+    const [state, setState] = useState<LoginState>('credentials')
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const [code, setCode] = useState('')
+    const [twoFactorToken, setTwoFactorToken] = useState('')
+    const [maskedDestination, setMaskedDestination] = useState('')
 
-    const [error, setError] = useState<string>('')
-
-    const handleSubmit = async (e: FormEvent) => {
+    const handleCredentialsSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        setError('')
-
-        if (!formData.email || !formData.password) {
-            setError('Por favor complete todos los campos')
-            return
-        }
 
         try {
-            await login(formData)
-            navigate('/')
-        } catch (err: any) {
-            console.error('Login error:', err)
-            setError(
-                err.response?.data?.message ||
-                    err.response?.data ||
-                    'Credenciales incorrectas. Por favor intente nuevamente.',
-            )
-        }
-    }
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target
-        setFormData((prev) => ({ ...prev, [name]: value }))
-        if (error) setError('')
-    }
-
-    const handleGoogleLogin = async () => {
-        try {
-            // Redirigir a Google OAuth
-            window.location.href =
-                'https://accounts.google.com/o/oauth2/v2/auth?' +
-                'client_id=YOUR_GOOGLE_CLIENT_ID&' +
-                'redirect_uri=' +
-                encodeURIComponent(window.location.origin + '/auth/google/callback') +
-                '&' +
-                'response_type=code&' +
-                'scope=email profile&' +
-                'access_type=offline'
+            const response = await initLogin({ email, password })
+            setTwoFactorToken(response.twoFactorToken)
+            setMaskedDestination(response.maskedDestination)
+            setState('verification')
         } catch (err) {
-            console.error('Google login error:', err)
-            setError('Error al iniciar sesión con Google')
+            console.error('Login init failed:', err)
         }
+    }
+
+    const handleVerificationSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        try {
+            await verifyTwoFactor(twoFactorToken, code)
+            navigate('/dashboard')
+        } catch (err) {
+            console.error('Verification failed:', err)
+        }
+    }
+
+    const handleBackToCredentials = () => {
+        setState('credentials')
+        setCode('')
+        setTwoFactorToken('')
+        setMaskedDestination('')
+    }
+
+    const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/\D/g, '').slice(0, 6)
+        setCode(value)
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50">
-            <Card className="w-full max-w-md">
-                <CardHeader className="space-y-1">
-                    <CardTitle className="text-2xl font-bold text-center">Iniciar Sesión</CardTitle>
-                    <CardDescription className="text-center">
-                        Ingrese sus credenciales para acceder al sistema
-                    </CardDescription>
-                </CardHeader>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+            <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900">
+                        {state === 'credentials' ? 'Iniciar Sesión' : 'Verificación 2FA'}
+                    </h1>
+                    <p className="text-gray-600 mt-2">
+                        {state === 'credentials'
+                            ? 'Ingrese sus credenciales para acceder al sistema'
+                            : `Ingrese el código enviado a ${maskedDestination}`}
+                    </p>
+                </div>
 
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {error && (
-                            <Alert variant="destructive">
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                        )}
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                        {error}
+                    </div>
+                )}
 
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Correo Electrónico</Label>
-                            <Input
+                {state === 'credentials' ? (
+                    <form onSubmit={handleCredentialsSubmit} className="space-y-6">
+                        <div>
+                            <label
+                                htmlFor="email"
+                                className="block text-sm font-medium text-gray-700 mb-2"
+                            >
+                                Correo Electrónico
+                            </label>
+                            <input
                                 id="email"
-                                name="email"
                                 type="email"
-                                placeholder="correo@ejemplo.com"
-                                value={formData.email}
-                                onChange={handleInputChange}
-                                disabled={isLoading}
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 required
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                placeholder="usuario@email.com"
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Contraseña</Label>
-                            <Input
+                        <div>
+                            <label
+                                htmlFor="password"
+                                className="block text-sm font-medium text-gray-700 mb-2"
+                            >
+                                Contraseña
+                            </label>
+                            <input
                                 id="password"
-                                name="password"
                                 type="password"
-                                placeholder="••••••••"
-                                value={formData.password}
-                                onChange={handleInputChange}
-                                disabled={isLoading}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
                                 required
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                placeholder="••••••••"
                             />
                         </div>
 
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-                        </Button>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isLoading ? 'Procesando...' : 'Continuar'}
+                        </button>
                     </form>
-
-                    <div className="relative my-4">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t" />
+                ) : (
+                    <form onSubmit={handleVerificationSubmit} className="space-y-6">
+                        <div>
+                            <label
+                                htmlFor="code"
+                                className="block text-sm font-medium text-gray-700 mb-2"
+                            >
+                                Código de Verificación
+                            </label>
+                            <input
+                                id="code"
+                                type="text"
+                                value={code}
+                                onChange={handleCodeChange}
+                                required
+                                maxLength={6}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-center text-2xl font-mono tracking-widest"
+                                placeholder="000000"
+                                autoComplete="off"
+                            />
+                            <p className="mt-2 text-xs text-gray-500 text-center">
+                                Ingrese el código de 6 dígitos
+                            </p>
                         </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-white px-2 text-gray-500">O continuar con</span>
+
+                        <button
+                            type="submit"
+                            disabled={isLoading || code.length !== 6}
+                            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isLoading ? 'Verificando...' : 'Verificar Código'}
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleBackToCredentials}
+                            className="w-full text-gray-600 py-2 text-sm hover:text-gray-800 transition"
+                        >
+                            ← Volver al inicio de sesión
+                        </button>
+                    </form>
+                )}
+
+                {state === 'credentials' && (
+                    <>
+                        <div className="mt-6 text-center">
+                            <p className="text-sm text-gray-600">
+                                ¿No tiene una cuenta?{' '}
+                                <a
+                                    href="/register"
+                                    className="text-blue-600 hover:text-blue-700 font-semibold"
+                                >
+                                    Regístrese aquí
+                                </a>
+                            </p>
                         </div>
-                    </div>
 
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full"
-                        onClick={handleGoogleLogin}
-                        disabled={isLoading}
-                    >
-                        <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
-                            <path
-                                fill="currentColor"
-                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                            />
-                            <path
-                                fill="currentColor"
-                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                            />
-                            <path
-                                fill="currentColor"
-                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                            />
-                            <path
-                                fill="currentColor"
-                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                            />
-                        </svg>
-                        Continuar con Google
-                    </Button>
-                </CardContent>
-
-                <CardFooter className="flex flex-col space-y-2">
-                    <div className="text-sm text-center text-gray-600">
-                        ¿No tiene una cuenta?{' '}
-                        <Link to="/register" className="text-blue-600 hover:underline font-medium">
-                            Regístrese aquí
-                        </Link>
-                    </div>
-                </CardFooter>
-            </Card>
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <p className="text-xs text-blue-800 font-semibold mb-1">
+                                💡 Usuarios de prueba:
+                            </p>
+                            <p className="text-xs text-blue-700">
+                                • juan.perez@email.com (Administrador)
+                            </p>
+                            <p className="text-xs text-blue-700">
+                                • maria.gonzalez@email.com (Investigador)
+                            </p>
+                            <p className="text-xs text-blue-700 mt-2">
+                                <span className="font-semibold">Nota:</span> Revisa la consola del
+                                navegador para ver el código 2FA
+                            </p>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     )
 }

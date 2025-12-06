@@ -1,5 +1,4 @@
-// Tipos que coinciden con los DTOs del backend
-
+// Tipos de request
 export interface LoginRequest {
     email: string
     password: string
@@ -10,14 +9,12 @@ export interface RegisterRequest {
     lastName: string
     email: string
     password: string
-    roleId?: number // Default 2 (Usuario)
+    roleId?: number
 }
 
-export interface AuthResponse {
-    token: string
-    refreshToken: string
-    expiresAt: string
-    user: User
+export interface TwoFactorVerifyRequest {
+    tempToken: string
+    code: string
 }
 
 export interface RefreshTokenRequest {
@@ -33,28 +30,30 @@ export interface ChangePasswordRequest {
     newPassword: string
 }
 
+// Tipos de response
+export interface TwoFactorInitResponse {
+    tempToken: string
+    maskedDestination: string
+    expiresAt: string
+}
+
+export interface AuthResponse {
+    token: string
+    refreshToken: string
+    expiresAt: string
+    user: User
+}
+
 export interface User {
     id: number
+    email: string
     firstName: string
     lastName: string
-    email: string
     fullName: string
-    createdAt: string
-    updatedAt?: string
     isActive: boolean
     roleId: number
     roleName: string
     provider: string
     profilePictureUrl?: string
-    role?: Role
-}
-
-export interface Role {
-    id: number
-    name: string
-    description: string
-    permissions: string
-    isActive: boolean
     createdAt: string
-    updatedAt?: string
 }

@@ -7,9 +7,9 @@ function App() {
     const initializeAuth = useAuthStore((state) => state.initializeAuth)
 
     useEffect(() => {
-        // Inicializar el estado de autenticación al montar la app
+        // Inicializar el estado de autenticación desde localStorage al montar la app
         initializeAuth()
-    }, [initializeAuth])
+    }, []) // Ejecutar solo una vez al montar el componente
 
     return <RouterProvider router={router} />
 }
