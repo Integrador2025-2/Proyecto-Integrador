@@ -9,6 +9,7 @@ import uvicorn
 from services.document_processor import DocumentProcessor
 from services.rag_service import RAGService
 from services.budget_automation import BudgetAutomationService
+from services.cotizacion_service import CotizacionService
 from models.schemas import (
     DocumentUpload,
     QueryRequest,
@@ -43,6 +44,7 @@ app.add_middleware(
 document_processor = DocumentProcessor()
 rag_service = RAGService()
 budget_automation = BudgetAutomationService()
+cotizacion_service = CotizacionService()
 
 # Modelos de datos
 class HealthResponse(BaseModel):
@@ -162,6 +164,89 @@ async def extract_budget_from_file(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error extrayendo presupuesto: {str(e)}")
+
+@app.post("/cotizacion/generar")
+async def generar_cotizacion(
+    file: UploadFile = File(...),
+    incluir_iva: bool = False,
+    tasa_iva: float = 0.19
+):
+    """
+    Generar cotización en formato colombiano desde archivo Excel.
+    
+    Args:
+        file: Archivo Excel con ítems a cotizar
+        incluir_iva: Si True, incluye IVA (19%) en la cotización
+        tasa_iva: Tasa de IVA (por defecto 0.19 = 19%)
+    
+    Returns:
+        Cotización en formato markdown y datos estructurados
+    """
+    try:
+        import tempfile
+        
+        # Validar tipo de archivo
+        allowed_extensions = ['.xlsx', '.xls']
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        
+        if file_extension not in allowed_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tipo de archivo no soportado para cotización. Permitidos: {allowed_extensions}"
+            )
+        
+        # Guardar archivo temporal
+        content = await file.read()
+        temp_file_path = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+                temp_file.write(content)
+                temp_file_path = temp_file.name
+            
+            # Generar cotización
+            resultado = await cotizacion_service.generar_cotizacion_desde_excel(
+                file_path=temp_file_path,
+                incluir_iva=incluir_iva,
+                tasa_iva=tasa_iva
+            )
+            
+            return {
+                "message": "Cotización generada exitosamente",
+                "filename": file.filename,
+                "cotizacion_markdown": resultado["cotizacion_markdown"],
+                "items": resultado["items"],
+                "totales": resultado["totales"],
+                "incluye_iva": resultado["incluye_iva"],
+                "tasa_iva": resultado["tasa_iva"],
+                "total_items": resultado["total_items"],
+                "fecha_generacion": resultado["fecha_generacion"]
+            }
+        
+        finally:
+            # Limpiar archivo temporal (asegurarse de que esté cerrado)
+            if temp_file_path and os.path.exists(temp_file_path):
+                try:
+                    # Pequeña pausa para asegurar que el archivo esté cerrado
+                    import time
+                    time.sleep(0.1)
+                    os.unlink(temp_file_path)
+                except PermissionError:
+                    # Si aún está en uso, intentar de nuevo después de un momento
+                    import time
+                    time.sleep(0.5)
+                    try:
+                        os.unlink(temp_file_path)
+                    except Exception as e:
+                        logger.warning(f"No se pudo eliminar archivo temporal {temp_file_path}: {str(e)}")
+                except Exception as e:
+                    logger.warning(f"Error eliminando archivo temporal {temp_file_path}: {str(e)}")
+    
+    except ValueError as e:
+        # Errores de validación (columnas faltantes, ítems inválidos)
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error generando cotización: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generando cotización: {str(e)}")
 
 @app.post("/query", response_model=QueryResponse)
 async def query_documents(request: QueryRequest):
