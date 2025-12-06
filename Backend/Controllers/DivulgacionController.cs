@@ -8,7 +8,6 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class DivulgacionController : ControllerBase
 {
     private readonly IMediator _mediator;

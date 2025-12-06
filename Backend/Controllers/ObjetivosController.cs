@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers;
 
-[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ObjetivosController : ControllerBase
