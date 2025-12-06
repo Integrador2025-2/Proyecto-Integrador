@@ -132,19 +132,19 @@ export default function LoginPage() {
                                 value={code}
                                 onChange={handleCodeChange}
                                 required
-                                maxLength={6}
+                                maxLength={5}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-center text-2xl font-mono tracking-widest"
                                 placeholder="000000"
                                 autoComplete="off"
                             />
                             <p className="mt-2 text-xs text-gray-500 text-center">
-                                Ingrese el código de 6 dígitos
+                                Ingrese el código de 5 dígitos
                             </p>
                         </div>
 
                         <button
                             type="submit"
-                            disabled={isLoading || code.length !== 6}
+                            disabled={isLoading || code.length !== 5}
                             className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? 'Verificando...' : 'Verificar Código'}
