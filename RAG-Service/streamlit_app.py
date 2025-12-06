@@ -1,6 +1,7 @@
 import os
 import json
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 
 import requests
 import pandas as pd
@@ -448,6 +449,230 @@ def tab_suggestions(project_id_default: int):
                     break
 
 
+def tab_cotizacion():
+    """Tab para generar cotizaciones desde Excel"""
+    st.subheader("📋 Generación de Cotizaciones")
+    st.caption(
+        "Carga un archivo Excel y genera una cotización formal en formato colombiano. "
+        "El sistema valida ítems, agrupa por actividad y genera una tabla markdown profesional."
+    )
+    
+    with st.form("cotizacion_form"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            upload_file = st.file_uploader(
+                "Cargar archivo Excel",
+                type=["xlsx", "xls"],
+                help="El archivo debe contener columnas: ACTIVIDAD, CANTIDAD, VALOR UNITARIO"
+            )
+        
+        with col2:
+            incluir_iva = st.checkbox(
+                "Incluir IVA (19%)",
+                value=False,
+                help="Si está marcado, se incluirá el IVA del 19% en la cotización"
+            )
+            tasa_iva = st.number_input(
+                "Tasa de IVA (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=19.0,
+                step=0.1,
+                help="Tasa de IVA a aplicar (por defecto 19%)"
+            ) / 100.0  # Convertir a decimal
+        
+        submitted = st.form_submit_button("Generar Cotización", type="primary")
+    
+    if submitted and upload_file is not None:
+        # Preparar archivo para envío
+        files = {
+            "file": (upload_file.name, upload_file.getvalue(), upload_file.type)
+        }
+        
+        params = {
+            "incluir_iva": incluir_iva,
+            "tasa_iva": tasa_iva
+        }
+        
+        with st.spinner("Generando cotización (esto puede tardar unos segundos)..."):
+            result = call_rag_api("POST", "/cotizacion/generar", params=params, files=files)
+        
+        if not result:
+            return
+        
+        # Mostrar cotización
+        st.markdown("#### 📄 Cotización Generada")
+        
+        # Mostrar tabla markdown
+        cotizacion_md = result.get("cotizacion_markdown", "")
+        if cotizacion_md:
+            st.markdown(cotizacion_md)
+        
+        # Mostrar totales
+        st.markdown("---")
+        st.markdown("#### 💰 Resumen de Totales")
+        
+        totales = result.get("totales", {})
+        col_t1, col_t2, col_t3 = st.columns(3)
+        
+        with col_t1:
+            st.metric(
+                "Subtotal",
+                f"${totales.get('subtotal', 0):,.0f} COP"
+            )
+        
+        if incluir_iva:
+            with col_t2:
+                st.metric(
+                    "IVA (19%)",
+                    f"${totales.get('iva', 0):,.0f} COP"
+                )
+            with col_t3:
+                st.metric(
+                    "Total con IVA",
+                    f"${totales.get('total', 0):,.0f} COP"
+                )
+        else:
+            with col_t2:
+                st.metric(
+                    "Total General",
+                    f"${totales.get('subtotal', 0):,.0f} COP"
+                )
+        
+        # Información adicional
+        st.markdown("---")
+        st.markdown("#### ℹ️ Información de la Cotización")
+        
+        col_info1, col_info2 = st.columns(2)
+        with col_info1:
+            st.metric("Total de ítems", result.get("total_items", 0))
+            st.metric("Incluye IVA", "Sí" if result.get("incluye_iva", False) else "No")
+        with col_info2:
+            fecha_gen = result.get("fecha_generacion", "")
+            if fecha_gen:
+                from datetime import datetime
+                try:
+                    fecha_obj = datetime.fromisoformat(fecha_gen.replace('Z', '+00:00'))
+                    st.metric("Fecha de generación", fecha_obj.strftime("%Y-%m-%d %H:%M:%S"))
+                except:
+                    st.metric("Fecha de generación", fecha_gen)
+        
+        # Botones de descarga
+        st.markdown("---")
+        st.markdown("#### 💾 Descargar Cotización")
+        
+        col_d1, col_d2 = st.columns(2)
+        
+        with col_d1:
+            # Descargar como Markdown
+            st.download_button(
+                label="📄 Descargar como Markdown (.md)",
+                data=cotizacion_md,
+                file_name=f"cotizacion_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                mime="text/markdown"
+            )
+        
+        with col_d2:
+            # Convertir a HTML y descargar
+            try:
+                import markdown
+                html_content = markdown.markdown(cotizacion_md, extensions=['tables'])
+                html_completo = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Cotización</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+        }}
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }}
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }}
+        th {{
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }}
+        tr:nth-child(even) {{
+            background-color: #f2f2f2;
+        }}
+        .total-row {{
+            font-weight: bold;
+            background-color: #e7f3ff;
+        }}
+    </style>
+</head>
+<body>
+    <h1>Cotización</h1>
+    {html_content}
+    <p><small>Generada el {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</small></p>
+</body>
+</html>
+"""
+                st.download_button(
+                    label="🌐 Descargar como HTML (.html)",
+                    data=html_completo,
+                    file_name=f"cotizacion_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                    mime="text/html"
+                )
+            except ImportError:
+                st.info("Para descargar HTML, instala: pip install markdown")
+            except Exception as e:
+                st.warning(f"No se pudo generar HTML: {str(e)}")
+        
+        # Mostrar ítems en tabla (opcional, para revisión)
+        with st.expander("📊 Ver ítems detallados"):
+            items = result.get("items", [])
+            if items:
+                df_items = pd.DataFrame(items)
+                st.dataframe(df_items, use_container_width=True, hide_index=True)
+    
+    elif submitted and upload_file is None:
+        st.warning("Por favor, carga un archivo Excel para generar la cotización.")
+    
+    # Instrucciones
+    with st.expander("ℹ️ Instrucciones para el formato del Excel"):
+        st.markdown("""
+        ### Formato Requerido del Archivo Excel
+        
+        El archivo Excel debe contener las siguientes columnas (el sistema las detecta automáticamente):
+        
+        **Columnas Obligatorias:**
+        - **ACTIVIDAD**: Nombre o descripción del ítem a cotizar
+        - **CANTIDAD**: Cantidad numérica mayor a 0
+        - **VALOR UNITARIO**: Valor unitario en pesos colombianos (mayor a 0)
+        
+        **Columnas Opcionales:**
+        - **VALOR TOTAL**: Si no está presente, se calcula como CANTIDAD × VALOR UNITARIO
+        - **JUSTIFICACIÓN**: Observaciones o justificación del ítem
+        
+        ### Ejemplo de Formato:
+        
+        | ACTIVIDAD | CANTIDAD | VALOR UNITARIO | VALOR TOTAL | JUSTIFICACIÓN |
+        |-----------|----------|----------------|-------------|---------------|
+        | Servicio de consultoría técnica | 40 | 150000 | 6000000 | Horas de consultoría especializada |
+        | Licencias de software | 10 | 500000 | 5000000 | Licencias anuales |
+        
+        ### Validaciones:
+        - Se ignoran filas con palabras: TOTAL, SUBTOTAL, NOTA, etc.
+        - CANTIDAD debe ser numérica y mayor a 0
+        - VALOR UNITARIO debe ser numérico y mayor a 0
+        - Los ítems se agrupan automáticamente por actividad
+        """)
+
+
 def main():
     ui_header()
     default_project_id = sidebar_config()
@@ -456,9 +681,10 @@ def main():
         "Consulta RAG",
         "Documentos",
         "Presupuesto",
+        "Cotizaciones",
         "Sugerencias / Análisis",
     ]
-    tab_query_ui, tab_docs_ui, tab_budget_ui, tab_sugg_ui = st.tabs(tab_labels)
+    tab_query_ui, tab_docs_ui, tab_budget_ui, tab_cotizacion_ui, tab_sugg_ui = st.tabs(tab_labels)
 
     with tab_query_ui:
         tab_query(default_project_id)
@@ -466,6 +692,8 @@ def main():
         tab_documents(default_project_id)
     with tab_budget_ui:
         tab_budget(default_project_id)
+    with tab_cotizacion_ui:
+        tab_cotizacion()
     with tab_sugg_ui:
         tab_suggestions(default_project_id)
 
