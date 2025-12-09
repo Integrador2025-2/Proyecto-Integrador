@@ -223,6 +223,7 @@ async def generar_cotizacion(
                 "incluye_iva": resultado["incluye_iva"],
                 "tasa_iva": resultado["tasa_iva"],
                 "total_items": resultado["total_items"],
+                "items_estimados": resultado.get("items_estimados", 0),
                 "fecha_generacion": resultado["fecha_generacion"]
             }
         

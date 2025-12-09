@@ -5,6 +5,7 @@ Adaptado para el Sistema General de Regalías (SGR) y entidades públicas colomb
 
 import os
 import re
+import json
 import pandas as pd
 import tempfile
 from typing import Dict, Any, List, Optional
@@ -62,7 +63,9 @@ class CotizacionService:
         self,
         file_path: str,
         incluir_iva: bool = False,
-        tasa_iva: float = 0.19
+        tasa_iva: float = 0.19,
+        project_description: Optional[str] = None,
+        project_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generar cotización desde archivo Excel.
@@ -71,6 +74,8 @@ class CotizacionService:
             file_path: Ruta al archivo Excel
             incluir_iva: Si True, incluye IVA (19%) en la cotización
             tasa_iva: Tasa de IVA (por defecto 0.19 = 19%)
+            project_description: Descripción del proyecto (opcional, para estimación de valores)
+            project_context: Contexto adicional del proyecto (opcional, para estimación de valores)
 
         Returns:
             Diccionario con la cotización en formato markdown y datos estructurados
@@ -83,8 +88,15 @@ class CotizacionService:
                 raise ValueError(
                     "No se encontraron ítems válidos para cotizar en el archivo.")
 
+            # Paso 1.5: Estimar valores faltantes si hay ítems que lo necesitan
+            items_con_valores_estimados = await self._estimar_valores_faltantes(
+                items_validos,
+                project_description=project_description,
+                project_context=project_context
+            )
+
             # Paso 2: Agrupar por actividad
-            items_por_actividad = self._agrupar_por_actividad(items_validos)
+            items_por_actividad = self._agrupar_por_actividad(items_con_valores_estimados)
 
             # Paso 3: Generar cotización con Gemini
             if self.use_llm and self.llm_service:
@@ -103,17 +115,21 @@ class CotizacionService:
 
             # Paso 4: Calcular totales
             totales = self._calcular_totales(
-                items_validos, incluir_iva, tasa_iva)
+                items_con_valores_estimados, incluir_iva, tasa_iva)
+
+            # Contar ítems estimados
+            items_estimados = sum(1 for item in items_con_valores_estimados if item.get("necesita_estimacion", False) and item.get("valor_estimado", False))
 
             return {
                 "cotizacion_markdown": cotizacion_markdown,
-                "items": items_validos,
+                "items": items_con_valores_estimados,
                 "items_por_actividad": items_por_actividad,
                 "totales": totales,
                 "incluye_iva": incluir_iva,
                 "tasa_iva": tasa_iva,
                 "fecha_generacion": datetime.now().isoformat(),
-                "total_items": len(items_validos)
+                "total_items": len(items_con_valores_estimados),
+                "items_estimados": items_estimados
             }
 
         except Exception as e:
@@ -176,95 +192,35 @@ class CotizacionService:
                         continue
                     
                     # 2.7. Buscar columna de descripción/ítem (puede tener diferentes nombres)
-                    item_col = None
+                    # ---------- DESCRIPCIÓN POR HOJA SGR (OFICIAL) ----------
+                    hoja_a_desc = {
+                        "01. Talento Humano": "CARGO ESPECÍFICO",
+                        "02. Equipos y Software": "EQUIPOS Y SOFTWARE (DESCRIPCIÓN)",
+                        "03. Capacitación y Eventos": "CAPACITACIÓN Y EVENTOS (DESCRIPCIÓN)",
+                        "04. Servicios Tecnológicos": "SERVICIOS TECNOLÓGICOS (DESCRIPCIÓN)",
+                        "05. Materiales, insumos y Doc": "MATERIALES E INSUMOS (DESCRIPCIÓN)",
+                        "06. Protección conocimiento y Di": "PROTECCIÓN CONOCIMIENTO Y DIFUSIÓN (DESCRIPCIÓN)",
+                        "07. Gastos de viaje": "GASTOS DE VIAJE (DESCRIPCIÓN)",
+                        "11. Otros": "OTROS (DESCRIPCIÓN)"
+                    }
                     
-                    # Columnas a excluir (números, índices, totales, etc.)
-                    columnas_excluidas = req + [
-                        "VALOR TOTAL", "TOTAL", "SUBTOTAL", "JUSTIFICACIÓN", "JUSTIFICACION",
-                        "NÚMERO", "NUMERO", "NRO", "NO", "#", "ÍTEM", "ITEM", "ID"
-                    ]
-                    
-                    # Palabras clave para identificar columnas de descripción
-                    keywords_descripcion = [
-                        "descripción", "descripcion", "desc", "concepto", "producto", 
-                        "servicio", "nombre", "detalle", "especificación", "especificacion",
-                        "equipos", "materiales", "talento", "servicios", "gastos", "viaje",
-                        "capacitacion", "capacitación", "cadena"
-                    ]
-                    
-                    # Palabras clave a evitar (columnas que son números o índices)
-                    keywords_a_evitar = ["número", "numero", "nro", "no", "#", "id", "índice", "indice"]
-                    
-                    # Primero buscar coincidencia exacta (prioridad más alta)
-                    posibles_nombres_item = [
-                        "EQUIPOS Y SOFTWARE (DESCRIPCIÓN)",
-                        "MATERIALES E INSUMOS (DESCRIPCIÓN)",
-                        "TALENTO HUMANO (CARGO ESPECIFICO)",
-                        "SERVICIOS TECNOLÓGICOS (DESCRIPCIÓN)",
-                        "GASTOS DE VIAJE (DESCRIPCIÓN)",
-                        "CAPACITACIÓN Y EVENTOS (DESCRIPCIÓN)",
-                        "CADENAS DE VALOR (DESCRIPCIÓN)",
-                        "DESCRIPCIÓN", "DESCRIPCION", "CONCEPTO", "PRODUCTO", "SERVICIO"
-                    ]
-                    for nombre in posibles_nombres_item:
-                        if nombre in df.columns:
-                            item_col = nombre
-                            break
-                    
-                    # Si no se encuentra exacta, buscar por palabras clave (coincidencia parcial)
-                    if item_col is None:
-                        columnas_candidatas = []
+                    item_col = hoja_a_desc.get(sheet_name)
+                    if item_col is None or item_col not in df.columns:
+                        # Fallback por palabras clave
                         for col in df.columns:
-                            col_lower = str(col).lower()
-                            
-                            # Excluir columnas que no queremos
-                            if col in columnas_excluidas:
-                                continue
-                            
-                            # Excluir columnas que parezcan números o índices
-                            if any(keyword in col_lower for keyword in keywords_a_evitar):
-                                continue
-                            
-                            if str(col).strip().isdigit() or col_lower.startswith("unnamed"):
-                                continue
-                            
-                            # Verificar si la columna contiene alguna palabra clave de descripción
-                            if any(keyword in col_lower for keyword in keywords_descripcion):
-                                columnas_candidatas.append((col, 1))  # Prioridad alta
-                            else:
-                                # Si no tiene palabras clave pero tampoco es numérica, es candidata con menor prioridad
-                                columnas_candidatas.append((col, 0))
-                        
-                        if columnas_candidatas:
-                            # Ordenar por prioridad y luego por longitud (columnas más largas suelen ser descripciones)
-                            columnas_candidatas.sort(key=lambda x: (x[1], len(str(x[0]))), reverse=True)
-                            item_col = columnas_candidatas[0][0]
-                    
-                    # Si aún no se encuentra, buscar la primera columna que no sea numérica ni requerida
+                            if any(k in col.lower() for k in ["descripción", "descripcion", "concepto", "item", "servicio"]):
+                                item_col = col
+                                break
                     if item_col is None:
-                        otras_columnas = [
-                            c for c in df.columns 
-                            if c not in columnas_excluidas
-                            and not str(c).strip().isdigit()
-                            and not str(c).lower().startswith("unnamed")
-                            and not any(keyword in str(c).lower() for keyword in keywords_a_evitar)
-                        ]
-                        if otras_columnas:
-                            # Priorizar columnas que tengan más texto (probablemente descripciones)
-                            otras_columnas.sort(key=lambda x: len(str(x)), reverse=True)
-                            item_col = otras_columnas[0]
-                        else:
-                            item_col = "ACTIVIDAD"  # Fallback: usar ACTIVIDAD como descripción
+                        item_col = "ACTIVIDAD"
                     
                     logger.debug(f"Hoja '{sheet_name}': usando columna '{item_col}' para descripción de ítems.")
                     
-                    # 2.8. Filtrar solo filas con cantidad y valor válidos
-                    df = df.dropna(subset=["CANTIDAD", "VALOR UNITARIO"])
-                    df = df[pd.to_numeric(df["CANTIDAD"], errors="coerce") > 0]
-                    df = df[pd.to_numeric(df["VALOR UNITARIO"], errors="coerce") > 0]
-                    
-                    # 2.9. Filtrar filas que no sean ítems válidos (ignorar totales, subtotales, etc.)
+                    # 2.8. Filtrar filas que no sean ítems válidos (ignorar totales, subtotales, etc.)
                     df = df[~df["ACTIVIDAD"].astype(str).str.lower().str.contains("|".join(self.ignore_keywords), na=False, regex=True)]
+                    
+                    # 2.9. NO filtrar por valores faltantes - capturar todos los ítems con descripción
+                    # Los ítems sin valor serán estimados después
                     
                     if df.empty:
                         logger.info(f"Hoja '{sheet_name}': no se encontraron ítems válidos después del filtrado.")
@@ -314,11 +270,17 @@ class CotizacionService:
                         cantidad = pd.to_numeric(row["CANTIDAD"], errors="coerce")
                         valor_unitario = pd.to_numeric(row["VALOR UNITARIO"], errors="coerce")
                         
-                        # Validar que sean valores válidos
-                        if pd.isna(cantidad) or pd.isna(valor_unitario) or cantidad <= 0 or valor_unitario <= 0:
-                            continue
+                        # Determinar si necesita estimación
+                        necesita_estimacion = False
+                        if pd.isna(cantidad) or cantidad <= 0:
+                            cantidad = 1.0  # Default a 1 si no hay cantidad
+                            necesita_estimacion = True
                         
-                        valor_total = cantidad * valor_unitario
+                        if pd.isna(valor_unitario) or valor_unitario <= 0:
+                            valor_unitario = 0.0  # Se estimará después
+                            necesita_estimacion = True
+                        
+                        valor_total = cantidad * valor_unitario if valor_unitario > 0 else 0.0
                         
                         item = {
                             "actividad": actividad,
@@ -326,7 +288,8 @@ class CotizacionService:
                             "cantidad": float(cantidad),
                             "valor_unitario": float(valor_unitario),
                             "valor_total": float(valor_total),
-                            "hoja_origen": sheet_name
+                            "hoja_origen": sheet_name,
+                            "necesita_estimacion": necesita_estimacion
                         }
                         
                         items_hoja.append(item)
@@ -363,6 +326,221 @@ class CotizacionService:
                     excel_file.close()
                 except Exception as e:
                     logger.warning(f"Error cerrando archivo Excel: {str(e)}")
+
+    async def _estimar_valores_faltantes(
+        self,
+        items: List[Dict[str, Any]],
+        project_description: Optional[str] = None,
+        project_context: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Estimar valores faltantes para ítems que no tienen valor unitario.
+        Usa el LLM para generar estimaciones basadas en descripción, actividad y contexto del proyecto.
+        
+        Args:
+            items: Lista de ítems, algunos pueden necesitar estimación
+            project_description: Descripción del proyecto (opcional)
+            project_context: Contexto adicional del proyecto (opcional)
+        
+        Returns:
+            Lista de ítems con valores estimados cuando corresponda
+        """
+        # Separar ítems que necesitan estimación de los que no
+        items_sin_estimacion = [item for item in items if not item.get("necesita_estimacion", False)]
+        items_para_estimar = [item for item in items if item.get("necesita_estimacion", False)]
+        
+        if not items_para_estimar:
+            logger.info("No hay ítems que necesiten estimación de valores.")
+            return items
+        
+        logger.info(f"Estimando valores para {len(items_para_estimar)} ítems sin valor.")
+        
+        # Si no hay LLM disponible, usar valores por defecto
+        if not self.use_llm or not self.llm_service:
+            logger.warning("LLM no disponible. Usando valores por defecto para ítems sin valor.")
+            for item in items_para_estimar:
+                # Valores por defecto según la hoja de origen
+                valor_default = self._obtener_valor_default_por_hoja(item.get("hoja_origen", ""))
+                item["valor_unitario"] = valor_default
+                item["valor_total"] = item["cantidad"] * valor_default
+                item["valor_estimado"] = True
+                item["necesita_estimacion"] = False
+            return items_sin_estimacion + items_para_estimar
+        
+        # Agrupar ítems por hoja para estimar en batch
+        items_por_hoja = {}
+        for item in items_para_estimar:
+            hoja = item.get("hoja_origen", "General")
+            if hoja not in items_por_hoja:
+                items_por_hoja[hoja] = []
+            items_por_hoja[hoja].append(item)
+        
+        # Estimar valores para cada grupo
+        items_estimados = []
+        for hoja, items_hoja in items_por_hoja.items():
+            try:
+                valores_estimados = await self._estimar_valores_con_llm(
+                    items_hoja,
+                    hoja,
+                    project_description=project_description,
+                    project_context=project_context
+                )
+                
+                # Actualizar ítems con valores estimados
+                for i, item in enumerate(items_hoja):
+                    if i < len(valores_estimados):
+                        valor_estimado = valores_estimados[i]
+                        item["valor_unitario"] = valor_estimado
+                        item["valor_total"] = item["cantidad"] * valor_estimado
+                        item["valor_estimado"] = True
+                        item["necesita_estimacion"] = False
+                    items_estimados.append(item)
+                    
+            except Exception as e:
+                logger.error(f"Error estimando valores para hoja '{hoja}': {str(e)}")
+                # En caso de error, usar valores por defecto
+                for item in items_hoja:
+                    valor_default = self._obtener_valor_default_por_hoja(hoja)
+                    item["valor_unitario"] = valor_default
+                    item["valor_total"] = item["cantidad"] * valor_default
+                    item["valor_estimado"] = True
+                    item["necesita_estimacion"] = False
+                items_estimados.extend(items_hoja)
+        
+        logger.info(f"Valores estimados para {len(items_estimados)} ítems.")
+        return items_sin_estimacion + items_estimados
+    
+    async def _estimar_valores_con_llm(
+        self,
+        items: List[Dict[str, Any]],
+        hoja_origen: str,
+        project_description: Optional[str] = None,
+        project_context: Optional[str] = None
+    ) -> List[float]:
+        """
+        Usar LLM para estimar valores unitarios de ítems.
+        
+        Returns:
+            Lista de valores unitarios estimados en COP
+        """
+        # Preparar información de ítems para el prompt
+        items_texto = []
+        for i, item in enumerate(items, 1):
+            items_texto.append(
+                f"Ítem {i}:\n"
+                f"- Descripción: {item.get('item', 'N/A')}\n"
+                f"- Actividad: {item.get('actividad', 'N/A')}\n"
+                f"- Cantidad: {item.get('cantidad', 1)}\n"
+                f"- Hoja: {hoja_origen}\n"
+            )
+        
+        items_info = "\n".join(items_texto)
+        
+        # Construir contexto del proyecto
+        contexto_proyecto = ""
+        if project_description:
+            contexto_proyecto += f"\n\nDESCRIPCIÓN DEL PROYECTO:\n{project_description}"
+        if project_context:
+            contexto_proyecto += f"\n\nCONTEXTO ADICIONAL:\n{project_context[:2000]}"  # Limitar longitud
+        
+        system_prompt = """Eres un experto en estimación de costos para proyectos de investigación e innovación en Colombia.
+Tu tarea es estimar valores unitarios realistas en PESOS COLOMBIANOS (COP) para ítems de presupuesto.
+
+IMPORTANTE:
+- Todos los valores deben estar en PESOS COLOMBIANOS (COP)
+- Los valores deben ser realistas para el mercado colombiano (2024-2025)
+- Considera el tipo de ítem, la actividad y el contexto del proyecto
+- Los valores deben ser razonables según la categoría (Talento Humano, Equipos, Servicios, etc.)
+
+FORMATO DE RESPUESTA:
+Debes responder ÚNICAMENTE con un objeto JSON válido con un array de valores numéricos.
+NO incluyas texto adicional antes o después del JSON.
+
+Ejemplo de formato:
+{
+    "valores_estimados": [5000000, 1500000, 2000000, 800000]
+}
+
+Donde cada número es el valor unitario estimado en COP para cada ítem en el mismo orden que se presentaron."""
+        
+        user_prompt = f"""Estima valores unitarios realistas (en COP) para los siguientes ítems:
+
+HOJA DE ORIGEN: {hoja_origen}
+
+ÍTEMS A ESTIMAR:
+{items_info}
+{contexto_proyecto}
+
+Considera:
+1. El tipo de ítem según su descripción
+2. La actividad a la que pertenece
+3. La hoja de origen (categoría SGR)
+4. El contexto del proyecto si está disponible
+5. Precios de mercado colombiano actuales
+
+Responde SOLO con el JSON en el formato especificado, sin texto adicional."""
+        
+        try:
+            respuesta = await self.llm_service.generate_answer(
+                question="Estima los valores unitarios",
+                context=user_prompt,
+                system_prompt=system_prompt
+            )
+            
+            # Parsear respuesta JSON
+            # Limpiar respuesta si viene con markdown
+            respuesta_limpia = respuesta.strip()
+            if "```json" in respuesta_limpia:
+                respuesta_limpia = re.sub(r'```json\s*', '', respuesta_limpia)
+                respuesta_limpia = re.sub(r'\s*```', '', respuesta_limpia)
+            elif "```" in respuesta_limpia:
+                respuesta_limpia = re.sub(r'```\s*', '', respuesta_limpia)
+                respuesta_limpia = re.sub(r'\s*```', '', respuesta_limpia)
+            
+            datos = json.loads(respuesta_limpia)
+            valores = datos.get("valores_estimados", [])
+            
+            # Validar que tengamos el mismo número de valores que ítems
+            if len(valores) != len(items):
+                logger.warning(f"Se estimaron {len(valores)} valores pero hay {len(items)} ítems. Completando con valores por defecto.")
+                # Completar con valores por defecto
+                while len(valores) < len(items):
+                    valor_default = self._obtener_valor_default_por_hoja(hoja_origen)
+                    valores.append(valor_default)
+            
+            # Asegurar que todos los valores sean positivos
+            valores = [max(0, float(v)) for v in valores[:len(items)]]
+            
+            return valores
+            
+        except Exception as e:
+            logger.error(f"Error estimando valores con LLM: {str(e)}")
+            # Retornar valores por defecto
+            return [self._obtener_valor_default_por_hoja(hoja_origen) for _ in items]
+    
+    def _obtener_valor_default_por_hoja(self, hoja: str) -> float:
+        """
+        Obtener valor por defecto según la hoja de origen.
+        Valores en COP típicos para cada categoría SGR.
+        """
+        valores_default = {
+            "01. Talento Humano": 5000000.0,  # 5M COP/mes típico
+            "02. Equipos y Software": 2000000.0,  # 2M COP por equipo
+            "03. Capacitación y Eventos": 500000.0,  # 500K COP por evento
+            "04. Servicios Tecnológicos": 1500000.0,  # 1.5M COP por servicio
+            "05. Materiales, insumos y Doc": 300000.0,  # 300K COP por material
+            "06. Protección conocimiento y Di": 800000.0,  # 800K COP
+            "07. Gastos de viaje": 500000.0,  # 500K COP por viaje
+            "11. Otros": 1000000.0  # 1M COP por defecto
+        }
+        
+        # Buscar coincidencia parcial
+        for hoja_key, valor in valores_default.items():
+            if hoja_key in hoja or hoja in hoja_key:
+                return valor
+        
+        # Valor por defecto genérico
+        return 1000000.0
 
     async def _encontrar_fila_inicio_datos(self, excel_file: pd.ExcelFile, sheet_name: str) -> Optional[int]:
         """
