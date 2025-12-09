@@ -21,7 +21,8 @@ export default function ProjectHeader({ project }: ProjectHeaderProps) {
         }
     }
 
-    const formatCurrency = (amount: number) => {
+    const formatCurrency = (amount?: number) => {
+        if (!amount || Number.isNaN(amount)) return 'Sin presupuesto'
         return new Intl.NumberFormat('es-CO', {
             style: 'currency',
             currency: 'COP',
@@ -29,13 +30,26 @@ export default function ProjectHeader({ project }: ProjectHeaderProps) {
         }).format(amount)
     }
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('es-ES', {
+    const formatDate = (dateString?: string) => {
+        if (!dateString) return 'Sin fecha'
+        const d = new Date(dateString)
+        if (Number.isNaN(d.getTime())) return 'Sin fecha'
+        return d.toLocaleDateString('es-ES', {
             day: '2-digit',
             month: 'long',
             year: 'numeric',
         })
     }
+
+    const progreso = project.progreso ?? 0
+    const presupuestoTotal = project.presupuestoTotal ?? 0
+    const presupuestoEjecutado = project.presupuestoEjecutado ?? 0
+    const ejecutadoPct = presupuestoTotal > 0 ? (presupuestoEjecutado / presupuestoTotal) * 100 : 0
+
+    const participantes = project.participantes ?? []
+    const objetivos = project.objetivos ?? []
+    const objetivosCompletados = objetivos.filter((o) => o.estado === 'Completado').length
+    const objetivosPct = objetivos.length > 0 ? (objetivosCompletados / objetivos.length) * 100 : 0
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -45,21 +59,23 @@ export default function ProjectHeader({ project }: ProjectHeaderProps) {
                     <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                             <span className="text-sm font-medium text-gray-500">
-                                {project.codigo}
+                                {project.codigo || `PROY-${project.id}`}
                             </span>
                             <span
                                 className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
                                     project.estado,
                                 )}`}
                             >
-                                {project.estado}
+                                {project.estado || 'Sin estado'}
                             </span>
                         </div>
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">{project.nombre}</h1>
-                        <p className="text-gray-600">{project.descripcion}</p>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                            {project.nombre || 'Proyecto sin nombre'}
+                        </h1>
+                        <p className="text-gray-600">{project.descripcion || 'Sin descripción.'}</p>
                     </div>
                     <div className="ml-6 text-right">
-                        <div className="text-5xl font-bold text-blue-600">{project.progreso}%</div>
+                        <div className="text-5xl font-bold text-blue-600">{progreso}%</div>
                         <div className="text-sm text-gray-500 mt-1">Progreso Total</div>
                     </div>
                 </div>
@@ -68,12 +84,12 @@ export default function ProjectHeader({ project }: ProjectHeaderProps) {
                 <div className="mt-4">
                     <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
                         <span className="font-medium">Progreso del Proyecto</span>
-                        <span>{project.progreso}% completado</span>
+                        <span>{progreso}% completado</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3">
                         <div
                             className="bg-blue-600 h-3 rounded-full transition-all duration-500"
-                            style={{ width: `${project.progreso}%` }}
+                            style={{ width: `${progreso}%` }}
                         />
                     </div>
                 </div>
@@ -116,20 +132,15 @@ export default function ProjectHeader({ project }: ProjectHeaderProps) {
                     </div>
                     <div className="space-y-1">
                         <p className="text-lg font-bold text-gray-900">
-                            {formatCurrency(project.presupuestoTotal)}
+                            {formatCurrency(presupuestoTotal)}
                         </p>
                         <p className="text-sm text-gray-600">
-                            Ejecutado: {formatCurrency(project.presupuestoEjecutado)}
+                            Ejecutado: {formatCurrency(presupuestoEjecutado)}
                         </p>
                         <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
                             <div
                                 className="bg-green-600 h-1.5 rounded-full"
-                                style={{
-                                    width: `${
-                                        (project.presupuestoEjecutado / project.presupuestoTotal) *
-                                        100
-                                    }%`,
-                                }}
+                                style={{ width: `${ejecutadoPct}%` }}
                             />
                         </div>
                     </div>
@@ -147,10 +158,10 @@ export default function ProjectHeader({ project }: ProjectHeaderProps) {
                     </div>
                     <div className="space-y-1">
                         <p className="text-lg font-bold text-gray-900">
-                            {project.participantes.length} miembros
+                            {participantes.length} miembros
                         </p>
                         <p className="text-sm text-gray-600 truncate">
-                            IP: {project.investigadorPrincipal}
+                            IP: {project.investigadorPrincipal || 'Sin investigador principal'}
                         </p>
                     </div>
                 </div>
@@ -167,23 +178,13 @@ export default function ProjectHeader({ project }: ProjectHeaderProps) {
                     </div>
                     <div className="space-y-1">
                         <p className="text-lg font-bold text-gray-900">
-                            {project.objetivos.length} objetivos
+                            {objetivos.length} objetivos
                         </p>
-                        <p className="text-sm text-gray-600">
-                            {project.objetivos.filter((o) => o.estado === 'Completado').length}{' '}
-                            completados
-                        </p>
+                        <p className="text-sm text-gray-600">{objetivosCompletados} completados</p>
                         <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
                             <div
                                 className="bg-yellow-600 h-1.5 rounded-full"
-                                style={{
-                                    width: `${
-                                        (project.objetivos.filter((o) => o.estado === 'Completado')
-                                            .length /
-                                            project.objetivos.length) *
-                                        100
-                                    }%`,
-                                }}
+                                style={{ width: `${objetivosPct}%` }}
                             />
                         </div>
                     </div>

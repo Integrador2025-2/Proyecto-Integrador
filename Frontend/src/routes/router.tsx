@@ -4,11 +4,18 @@ import MainLayout from '../components/layout/MainLayout'
 import LoginPage from '../pages/auth/LoginPage'
 import DashboardPage from '../pages/Dashboard/DashboardPage'
 import ProjectsPage from '../pages/Projects/ProjectsPage'
+import ProjectDetailPage from '../pages/Projects/ProjectDetailPage'
+import GoogleCallback from '../pages/auth/GoogleCallback'
+import CreateProjectPage from '../pages/Projects/CreateProjectPage'
 
 export const router = createBrowserRouter([
     {
         path: '/login',
         element: <LoginPage />,
+    },
+    {
+        path: '/auth/google/callback',
+        element: <GoogleCallback />,
     },
     {
         path: '/',
@@ -30,7 +37,14 @@ export const router = createBrowserRouter([
                 path: 'projects',
                 element: <ProjectsPage />,
             },
-            // Aquí irán las demás rutas: projects/:id, activities, team, etc.
+            {
+                path: 'projects/new',
+                element: <CreateProjectPage />,
+            },
+            {
+                path: 'projects/:id',
+                element: <ProjectDetailPage />,
+            },
         ],
     },
     {

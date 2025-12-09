@@ -1,4 +1,12 @@
-import type { AuthResponse, TwoFactorInitResponse, User } from '../types'
+import type {
+    AuthResponse,
+    TwoFactorInitResponse,
+    User,
+    BackendAuthResponse,
+    BackendUserDto,
+    BackendTwoFactorInitResponse,
+    BackendErrorResponse,
+} from '../types'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5043/api'
 
@@ -30,15 +38,14 @@ class AuthService {
         })
 
         if (!response.ok) {
-            const errorData = await response
+            const errorData: BackendErrorResponse = await response
                 .json()
                 .catch(() => ({ message: 'Error al iniciar sesión' }))
             throw new Error(errorData.message || 'Credenciales inválidas')
         }
 
-        const data = await response.json()
+        const data: BackendTwoFactorInitResponse = await response.json()
 
-        // Convertir de backend (PascalCase) a frontend (camelCase)
         return {
             twoFactorRequired: data.twoFactorRequired,
             twoFactorToken: data.twoFactorToken,
@@ -62,13 +69,14 @@ class AuthService {
         })
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: 'Código incorrecto' }))
+            const errorData: BackendErrorResponse = await response
+                .json()
+                .catch(() => ({ message: 'Código incorrecto' }))
             throw new Error(errorData.message || 'Código incorrecto')
         }
 
-        const data = await response.json()
+        const data: BackendAuthResponse = await response.json()
 
-        // Convertir de backend (PascalCase) a frontend (camelCase)
         const authResponse: AuthResponse = {
             token: data.token,
             refreshToken: data.refreshToken,
@@ -76,9 +84,7 @@ class AuthService {
             user: this.mapUserFromBackend(data.user),
         }
 
-        // Guardar en localStorage
         this.saveAuthData(authResponse)
-
         return authResponse
     }
 
@@ -103,13 +109,13 @@ class AuthService {
         })
 
         if (!response.ok) {
-            const errorData = await response
+            const errorData: BackendErrorResponse = await response
                 .json()
                 .catch(() => ({ message: 'Error al registrarse' }))
             throw new Error(errorData.message || 'Error al registrarse')
         }
 
-        const data = await response.json()
+        const data: BackendAuthResponse = await response.json()
 
         const authResponse: AuthResponse = {
             token: data.token,
@@ -119,7 +125,6 @@ class AuthService {
         }
 
         this.saveAuthData(authResponse)
-
         return authResponse
     }
 
@@ -143,7 +148,6 @@ class AuthService {
             }
         }
 
-        // Limpiar localStorage
         localStorage.removeItem(AUTH_TOKEN_KEY)
         localStorage.removeItem(REFRESH_TOKEN_KEY)
         localStorage.removeItem(USER_KEY)
@@ -154,7 +158,6 @@ class AuthService {
      */
     async getCurrentUser(): Promise<User | null> {
         const token = this.getToken()
-
         if (!token) {
             return null
         }
@@ -170,7 +173,7 @@ class AuthService {
                 return null
             }
 
-            const data = await response.json()
+            const data: BackendUserDto = await response.json()
             return this.mapUserFromBackend(data)
         } catch (error) {
             console.error('Error getting current user:', error)
@@ -183,18 +186,28 @@ class AuthService {
      */
     async updateUser(userId: number, updates: Partial<User>): Promise<User> {
         const token = this.getToken()
-
         if (!token) {
             throw new Error('No autenticado')
         }
 
-        // Convertir de frontend (camelCase) a backend (PascalCase)
-        const backendUpdates: any = {}
-        if (updates.firstName) backendUpdates.FirstName = updates.firstName
-        if (updates.lastName) backendUpdates.LastName = updates.lastName
-        if (updates.email) backendUpdates.Email = updates.email
-        if (updates.isActive !== undefined) backendUpdates.IsActive = updates.isActive
-        if (updates.roleId) backendUpdates.RoleId = updates.roleId
+        // Convertir de frontend (camelCase) a backend (PascalCase) tipado
+        const backendUpdates: Partial<BackendUserDto> & { Id?: number } = {}
+
+        if (updates.firstName !== undefined) {
+            ;(backendUpdates as unknown as { FirstName: string }).FirstName = updates.firstName
+        }
+        if (updates.lastName !== undefined) {
+            ;(backendUpdates as unknown as { LastName: string }).LastName = updates.lastName
+        }
+        if (updates.email !== undefined) {
+            ;(backendUpdates as unknown as { Email: string }).Email = updates.email
+        }
+        if (updates.isActive !== undefined) {
+            ;(backendUpdates as unknown as { IsActive: boolean }).IsActive = updates.isActive
+        }
+        if (updates.roleId !== undefined) {
+            ;(backendUpdates as unknown as { RoleId: number }).RoleId = updates.roleId
+        }
 
         const response = await fetch(`${API_URL}/users/${userId}`, {
             method: 'PUT',
@@ -209,12 +222,10 @@ class AuthService {
             throw new Error('Error al actualizar usuario')
         }
 
-        const data = await response.json()
+        const data: BackendUserDto = await response.json()
         const updatedUser = this.mapUserFromBackend(data)
 
-        // Actualizar en localStorage
         localStorage.setItem(USER_KEY, JSON.stringify(updatedUser))
-
         return updatedUser
     }
 
@@ -223,7 +234,6 @@ class AuthService {
      */
     async changePassword(currentPassword: string, newPassword: string): Promise<void> {
         const token = this.getToken()
-
         if (!token) {
             throw new Error('No autenticado')
         }
@@ -238,7 +248,7 @@ class AuthService {
         })
 
         if (!response.ok) {
-            const errorData = await response
+            const errorData: BackendErrorResponse = await response
                 .json()
                 .catch(() => ({ message: 'Error al cambiar contraseña' }))
             throw new Error(errorData.message || 'Error al cambiar contraseña')
@@ -250,7 +260,6 @@ class AuthService {
      */
     async refreshToken(): Promise<AuthResponse> {
         const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
-
         if (!refreshToken) {
             throw new Error('No hay refresh token')
         }
@@ -267,7 +276,7 @@ class AuthService {
             throw new Error('Error al refrescar token')
         }
 
-        const data = await response.json()
+        const data: BackendAuthResponse = await response.json()
 
         const authResponse: AuthResponse = {
             token: data.token,
@@ -277,7 +286,49 @@ class AuthService {
         }
 
         this.saveAuthData(authResponse)
+        return authResponse
+    }
 
+    /**
+     * Login con Google - obtiene URL de autenticación
+     */
+    async getGoogleAuthUrl(): Promise<string> {
+        const response = await fetch(`${API_URL}/auth/google-auth-url`, {
+            method: 'GET',
+        })
+
+        if (!response.ok) {
+            throw new Error('No se pudo obtener la URL de autenticación de Google')
+        }
+
+        const data = (await response.json()) as { authUrl: string }
+        return data.authUrl
+    }
+
+    async loginWithGoogle(googleToken: string): Promise<AuthResponse> {
+        const response = await fetch(`${API_URL}/auth/google-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ googleToken }),
+        })
+
+        if (!response.ok) {
+            const errorData: BackendErrorResponse = await response
+                .json()
+                .catch(() => ({ message: 'Error al iniciar sesión con Google' }))
+            throw new Error(errorData.message || 'Error al iniciar sesión con Google')
+        }
+
+        const data: BackendAuthResponse = await response.json()
+
+        const authResponse: AuthResponse = {
+            token: data.token,
+            refreshToken: data.refreshToken,
+            expiresAt: data.expiresAt,
+            user: this.mapUserFromBackend(data.user),
+        }
+
+        this.saveAuthData(authResponse)
         return authResponse
     }
 
@@ -305,9 +356,9 @@ class AuthService {
     // === Métodos privados ===
 
     /**
-     * Mapea usuario del backend (PascalCase) a frontend (camelCase)
+     * Mapea usuario del backend (PascalCase o camelCase) a frontend (camelCase)
      */
-    private mapUserFromBackend(backendUser: any): User {
+    private mapUserFromBackend(backendUser: BackendUserDto): User {
         return {
             id: backendUser.id,
             firstName: backendUser.firstName,
@@ -320,7 +371,7 @@ class AuthService {
             roleId: backendUser.roleId,
             roleName: backendUser.roleName,
             provider: backendUser.provider,
-            profilePictureUrl: backendUser.profilePictureUrl,
+            profilePictureUrl: backendUser.profilePictureUrl ?? undefined,
         }
     }
 

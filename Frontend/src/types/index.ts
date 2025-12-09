@@ -273,3 +273,36 @@ export interface UpdateTask {
     monto: number
     actividadId: number
 }
+
+export interface BackendUserDto {
+    id: number
+    firstName: string
+    lastName: string
+    email: string
+    fullName: string
+    createdAt: string
+    updatedAt: string | null
+    isActive: boolean
+    roleId: number
+    roleName: string
+    provider: string
+    profilePictureUrl?: string | null
+}
+
+export interface BackendAuthResponse {
+    token: string
+    refreshToken: string
+    expiresAt: string
+    user: BackendUserDto
+}
+
+export interface BackendTwoFactorInitResponse {
+    twoFactorRequired: boolean
+    twoFactorToken: string
+    deliveryChannel: string
+    maskedDestination: string
+}
+
+export interface BackendErrorResponse {
+    message?: string
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { apiServiceMock } from '../mocks/api.service.mock'
+import { apiService } from '../services/api.service'
 import { useAuthStore } from '../store/authStore'
 import type { Project } from '../types'
 
@@ -15,12 +15,10 @@ export const useProjects = () => {
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState<ProjectFilter>('all')
 
-    // Cargar proyectos del usuario
     useEffect(() => {
         loadProjects()
     }, [user])
 
-    // Aplicar filtros cuando cambien
     useEffect(() => {
         applyFilters()
     }, [projects, searchQuery, statusFilter])
@@ -31,7 +29,7 @@ export const useProjects = () => {
         try {
             setIsLoading(true)
             setError(null)
-            const data = await apiServiceMock.getProjectsByUserId(user.id)
+            const data = await apiService.getProjectsByUserId(user.id)
             setProjects(data)
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Error al cargar proyectos'
@@ -45,18 +43,16 @@ export const useProjects = () => {
     const applyFilters = () => {
         let filtered = [...projects]
 
-        // Filtrar por búsqueda (nombre o código)
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase()
             filtered = filtered.filter(
                 (project) =>
-                    project.nombre.toLowerCase().includes(query) ||
-                    project.codigo.toLowerCase().includes(query) ||
-                    project.descripcion.toLowerCase().includes(query),
+                    (project.nombre || '').toLowerCase().includes(query) ||
+                    (project.codigo || '').toLowerCase().includes(query) ||
+                    (project.descripcion || '').toLowerCase().includes(query),
             )
         }
 
-        // Filtrar por estado
         if (statusFilter !== 'all') {
             filtered = filtered.filter((project) => project.estado === statusFilter)
         }
@@ -65,18 +61,13 @@ export const useProjects = () => {
     }
 
     const getProjectById = async (id: number): Promise<Project | null> => {
-        try {
-            return await apiServiceMock.getProjectById(id)
-        } catch (err) {
-            console.error('Error getting project by id:', err)
-            return null
-        }
+        return apiService.getProjectById(id)
     }
 
-    const createProject = async (projectData: Omit<Project, 'id'>): Promise<Project | null> => {
+    const createProject = async (projectData: { usuarioId: number }): Promise<Project | null> => {
         try {
-            const newProject = await apiServiceMock.createProject(projectData)
-            await loadProjects() // Recargar lista
+            const newProject = await apiService.createProject(projectData)
+            await loadProjects()
             return newProject
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Error al crear proyecto'
@@ -91,8 +82,8 @@ export const useProjects = () => {
         updates: Partial<Project>,
     ): Promise<Project | null> => {
         try {
-            const updatedProject = await apiServiceMock.updateProject(id, updates)
-            await loadProjects() // Recargar lista
+            const updatedProject = await apiService.updateProject(id, updates)
+            await loadProjects()
             return updatedProject
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Error al actualizar proyecto'
@@ -104,8 +95,8 @@ export const useProjects = () => {
 
     const deleteProject = async (id: number): Promise<boolean> => {
         try {
-            await apiServiceMock.deleteProject(id)
-            await loadProjects() // Recargar lista
+            await apiService.deleteProject(id)
+            await loadProjects()
             return true
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Error al eliminar proyecto'
@@ -115,31 +106,23 @@ export const useProjects = () => {
         }
     }
 
-    // Estadísticas rápidas
-    const getProjectStats = () => {
-        return {
-            total: projects.length,
-            enEjecucion: projects.filter((p) => p.estado === 'En ejecución').length,
-            enRevision: projects.filter((p) => p.estado === 'En revisión').length,
-            finalizados: projects.filter((p) => p.estado === 'Finalizado').length,
-            planificacion: projects.filter((p) => p.estado === 'Planificación').length,
-        }
-    }
+    const getProjectStats = (target: Project[] = projects) => ({
+        total: target.length,
+        enEjecucion: target.filter((p) => p.estado === 'En ejecución').length,
+        enRevision: target.filter((p) => p.estado === 'En revisión').length,
+        finalizados: target.filter((p) => p.estado === 'Finalizado').length,
+        planificacion: target.filter((p) => p.estado === 'Planificación').length,
+    })
 
     return {
-        // Estado
         projects: filteredProjects,
         allProjects: projects,
         isLoading,
         error,
-
-        // Filtros
         searchQuery,
         setSearchQuery,
         statusFilter,
         setStatusFilter,
-
-        // Métodos
         loadProjects,
         getProjectById,
         createProject,

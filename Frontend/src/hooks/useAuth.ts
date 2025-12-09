@@ -18,18 +18,16 @@ interface RegisterData {
     roleId?: number
 }
 
-// Seleccionar servicio según variable de entorno
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 const activeAuthService = USE_MOCK ? authServiceMock : authService
-
 console.log('🔧 Auth Mode:', USE_MOCK ? 'MOCK' : 'REAL BACKEND')
+const API_URL = import.meta.env.VITE_API_URL
 
 export const useAuth = () => {
     const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    // Zustand store
     const {
         user,
         isAuthenticated,
@@ -38,9 +36,6 @@ export const useAuth = () => {
         updateUser: updateUserStore,
     } = useAuthStore()
 
-    /**
-     * Inicia el proceso de login 2FA (Paso 1)
-     */
     const initLogin = async (credentials: LoginCredentials): Promise<TwoFactorInitResponse> => {
         setIsLoading(true)
         setError(null)
@@ -59,18 +54,12 @@ export const useAuth = () => {
         }
     }
 
-    /**
-     * Verifica el código 2FA (Paso 2)
-     */
     const verifyTwoFactor = async (twoFactorToken: string, code: string): Promise<AuthResponse> => {
         setIsLoading(true)
         setError(null)
         try {
             const response = await activeAuthService.verifyTwoFactor(twoFactorToken, code)
-
-            // Actualizar el store con los datos de autenticación
             setAuth(response)
-
             return response
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Código incorrecto'
@@ -81,9 +70,6 @@ export const useAuth = () => {
         }
     }
 
-    /**
-     * Registra un nuevo usuario
-     */
     const register = async (userData: RegisterData): Promise<AuthResponse> => {
         setIsLoading(true)
         setError(null)
@@ -95,10 +81,7 @@ export const useAuth = () => {
                 userData.password,
                 userData.roleId,
             )
-
-            // Actualizar el store con los datos de autenticación
             setAuth(response)
-
             return response
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Error al registrarse'
@@ -109,17 +92,11 @@ export const useAuth = () => {
         }
     }
 
-    /**
-     * Cierra sesión
-     */
     const logout = async (): Promise<void> => {
         setIsLoading(true)
         try {
             await activeAuthService.logout()
-
-            // Limpiar el store
             clearAuth()
-
             navigate('/login')
         } catch (err) {
             console.error('Logout error:', err)
@@ -128,9 +105,6 @@ export const useAuth = () => {
         }
     }
 
-    /**
-     * Obtiene el usuario actual
-     */
     const getCurrentUser = async (): Promise<User | null> => {
         try {
             return await activeAuthService.getCurrentUser()
@@ -140,18 +114,12 @@ export const useAuth = () => {
         }
     }
 
-    /**
-     * Actualiza el usuario
-     */
     const updateUser = async (userId: number, updates: Partial<User>): Promise<User | null> => {
         setIsLoading(true)
         setError(null)
         try {
             const updatedUser = await activeAuthService.updateUser(userId, updates)
-
-            // Actualizar el store
             updateUserStore(updatedUser)
-
             return updatedUser
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Error al actualizar usuario'
@@ -162,9 +130,6 @@ export const useAuth = () => {
         }
     }
 
-    /**
-     * Cambia la contraseña
-     */
     const changePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
         setIsLoading(true)
         setError(null)
@@ -179,12 +144,49 @@ export const useAuth = () => {
         }
     }
 
+    // === Google Auth ===
+
+    const loginWithGoogleRedirect = async (): Promise<void> => {
+        setIsLoading(true)
+        setError(null)
+        try {
+            const authUrl = await activeAuthService.getGoogleAuthUrl()
+            window.location.href = authUrl
+        } catch (err) {
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : 'Error al redirigir a Google para autenticación'
+            setError(errorMessage)
+            setIsLoading(false)
+        }
+    }
+
+    const handleGoogleCallback = async (code: string) => {
+        console.log('API_URL:', API_URL)
+        console.log('Google login URL:', `${API_URL}/auth/google-login`)
+        console.log('Google code:', code)
+
+        const response = await fetch(`${API_URL}/auth/google-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ googleToken: code }),
+        })
+
+        if (!response.ok) {
+            console.error('Google login status:', response.status)
+            throw new Error('Error en login con Google')
+        }
+
+        const data: AuthResponse = await response.json()
+        setAuth(data) // aquí tu función de Zustand para guardar user/token
+        navigate('/dashboard')
+    }
+
     return {
-        // Estado del store
         user,
         isAuthenticated,
 
-        // Métodos de autenticación
         initLogin,
         verifyTwoFactor,
         register,
@@ -193,7 +195,9 @@ export const useAuth = () => {
         updateUser,
         changePassword,
 
-        // Estado de carga y errores
+        loginWithGoogleRedirect,
+        handleGoogleCallback,
+
         isLoading,
         error,
     }
