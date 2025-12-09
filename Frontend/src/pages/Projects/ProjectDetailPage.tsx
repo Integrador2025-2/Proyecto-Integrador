@@ -7,10 +7,15 @@ import ProjectHeader from './components/ProjectHeader'
 import ProjectTabs from './components/ProjectTabs'
 import OverviewTab from './components/tabs/OverviewTab'
 import ActivitiesTab from './components/tabs/ActivitiesTab'
+import { ObjectivesTab } from './components/tabs/ObjectivesTab'
 import type { Project } from '../../types'
-import { useProjectsStore } from '../../store/projectStore'
+import { useProjectStore } from '../../store/projectStore'
+import { TeamTab } from './components/tabs/TeamTab'
+import { DocumentsTab } from './components/tabs/DocumentsTab'
+import BudgetTab from './components/tabs/BudgetTab'
+import TasksTab from './components/tabs/TasksTab'
 
-type TabType = 'overview' | 'objectives' | 'team' | 'budget' | 'documents' | 'activities'
+type TabType = 'overview' | 'objectives' | 'team' | 'budget' | 'documents' | 'activities' | 'tasks'
 
 export default function ProjectDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -20,7 +25,7 @@ export default function ProjectDetailPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<TabType>('overview')
 
-    const enrichedProjects = useProjectsStore((state) => state.projects)
+    const enrichedProjects = useProjectStore((state) => state.projects)
 
     useEffect(() => {
         if (!id) return
@@ -87,11 +92,12 @@ export default function ProjectDetailPage() {
 
             <div className="mt-4">
                 {activeTab === 'overview' && <OverviewTab project={project} />}
-                {activeTab === 'objectives' && <div>Tab de Objetivos - Próximamente</div>}
-                {activeTab === 'team' && <div>Tab de Equipo - Próximamente</div>}
-                {activeTab === 'budget' && <div>Tab de Presupuesto - Próximamente</div>}
-                {activeTab === 'documents' && <div>Tab de Documentos - Próximamente</div>}
+                {activeTab === 'objectives' && project && <ObjectivesTab project={project} />}
+                {activeTab === 'team' && project && <TeamTab project={project} />}
+                {activeTab === 'budget' && project && <BudgetTab project={project} />}
+                {activeTab === 'documents' && project && <DocumentsTab project={project} />}
                 {activeTab === 'activities' && <ActivitiesTab projectId={project.id} />}
+                {activeTab === 'tasks' && <TasksTab projectId={project.id} />}
             </div>
         </div>
     )

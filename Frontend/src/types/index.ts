@@ -2,6 +2,16 @@
 // AUTENTICACIÓN - Basado en Backend/Models/DTOs/
 // ============================================
 
+export interface Role {
+    id: number
+    name: string
+    description: string
+    permissions: string
+    isActive: boolean
+    createdAt: string
+    updatedAt: string | null
+}
+
 export interface User {
     // ✅ Campos del backend (UserDto.cs)
     id: number // Id
@@ -17,16 +27,6 @@ export interface User {
     provider: string // Provider ("local" | "google")
     profilePictureUrl?: string // ProfilePictureUrl (nullable)
     role?: Role // Role (navegación)
-}
-
-export interface Role {
-    id: number // Id
-    name: string // Name
-    description: string // Description
-    permissions: string // Permissions
-    isActive: boolean // IsActive
-    createdAt: string // CreatedAt
-    updatedAt: string | null // UpdatedAt
 }
 
 export interface AuthResponse {
@@ -71,33 +71,9 @@ export interface ChangePasswordRequest {
 
 // ============================================
 // PROYECTO - Basado en Backend/Models/Domain/Proyecto.cs
-// Backend REAL: ProyectoId, FechaCreacion, UsuarioId (3 campos)
-// Campos adicionales: MOCK para desarrollo frontend
+// Backend REAL: ProyectoId, FechaCreacion, UsuarioId
+// Campos adicionales: solo frontend (enriquecimiento en memoria)
 // ============================================
-
-export interface Project {
-    // ✅ CAMPOS DEL BACKEND (OBLIGATORIOS) - Proyecto.cs
-    id: number // ProyectoId
-    fechaCreacion: string // FechaCreacion (DateTime)
-    usuarioId: number // UsuarioId
-
-    // 🎭 CAMPOS MOCK (OPCIONALES - solo para desarrollo)
-    codigo?: string
-    nombre?: string
-    descripcion?: string
-    estado?: 'En ejecución' | 'En revisión' | 'Finalizado' | 'Planificación'
-    investigadorPrincipal?: string
-    entidadEjecutora?: string
-    ubicacion?: string
-    fechaInicio?: string
-    fechaFin?: string
-    presupuestoTotal?: number
-    presupuestoEjecutado?: number
-    progreso?: number
-    participantes?: ProjectParticipant[]
-    objetivos?: Objective[]
-    documentos?: Document[]
-}
 
 export interface ProjectParticipant {
     id: number
@@ -115,51 +91,47 @@ export interface Objective {
     progreso: number
 }
 
-export interface Document {
+export interface ProjectDocument {
     id: number
     nombre: string
     tipo: string
-    tamano: number
+    descripcion?: string
+    tamano?: number
     fechaSubida: string
     url: string
 }
 
-// ============================================
-// ACTIVIDAD - Basado en Backend/Models/Domain/Actividad.cs
-// Backend REAL: Estructura de presupuesto con rubros
-// ============================================
+export interface Project {
+    // ✅ CAMPOS DEL BACKEND (OBLIGATORIOS) - Proyecto.cs / ProyectoDto.cs
+    id: number // ProyectoId
+    fechaCreacion: string // FechaCreacion (DateTime)
+    usuarioId: number // UsuarioId
 
-export interface Activity {
-    // ✅ CAMPOS DEL BACKEND (OBLIGATORIOS) - Actividad.cs + ActividadDto.cs
-    actividadId: number // ActividadId
-    proyectoId: number // ProyectoId
-    nombre: string // Nombre
-    descripcion: string // Descripcion
-    justificacion: string // Justificacion
-    totalxAnios: number[] // TotalxAnios (array de decimales)
-    cantidadAnios: number // CantidadAnios
-    especificacionesTecnicas: string // EspecificacionesTecnicas
-    valorUnitario: number // ValorUnitario
-    valorTotal: number // ValorTotal (calculado)
-    rubros: RubroItem[] // Rubros (unified list)
-
-    // 🎭 CAMPOS MOCK (OPCIONALES - solo para desarrollo)
-    id?: number // Alias de actividadId
-    objectiveId?: number
-    estado?: 'Pendiente' | 'En curso' | 'Completada' | 'Cancelada'
-    responsable?: string
-    responsableId?: number
-    progreso?: number
+    // 💡 CAMPOS DE NEGOCIO (solo frontend, mock/enriquecidos)
+    codigo?: string
+    nombre?: string
+    descripcion?: string
+    estado?: 'En ejecución' | 'En revisión' | 'Finalizado' | 'Planificación'
+    investigadorPrincipal?: string
+    entidadEjecutora?: string
+    ubicacion?: string
     fechaInicio?: string
     fechaFin?: string
+    presupuestoTotal?: number
+    presupuestoEjecutado?: number
+    progreso?: number
+    participantes?: ProjectParticipant[]
+    objetivos?: Objective[]
+    documentos?: ProjectDocument[]
 }
 
 // ============================================
-// RUBRO ITEM - Basado en Backend/Models/DTOs/ActividadDto.cs
+// ACTIVIDAD - Basado en Backend/Models/Domain/Actividad.cs
+// Backend REAL: presupuesto detallado en actividad y rubros
 // ============================================
 
 export interface RubroItem {
-    tipo: string // Tipo: TalentoHumano, EquiposSoftware, etc.
+    tipo: string // TalentoHumano, EquiposSoftware, etc.
     id: number
     descripcion: string
     total: number
@@ -172,6 +144,30 @@ export interface RubroItem {
     cantidad?: number
 }
 
+export interface Activity {
+    // ✅ CAMPOS DEL BACKEND (OBLIGATORIOS) - Actividad.cs + ActividadDto.cs
+    actividadId: number // ActividadId
+    proyectoId: number // ProyectoId
+    nombre: string // Nombre
+    descripcion: string // Descripcion
+    justificacion: string // Justificacion
+    totalxAnios: number[] // TotalxAnios
+    cantidadAnios: number // CantidadAnios
+    especificacionesTecnicas: string // EspecificacionesTecnicas
+    valorUnitario: number // ValorUnitario
+    valorTotal: number // ValorTotal (calculado en backend o derivado)
+    rubros: RubroItem[] // Rubros (lista unificada por tipo)
+
+    // 💡 CAMPOS SOLO FRONTEND (estado visual)
+    id?: number // Alias de actividadId
+    estado?: 'Pendiente' | 'En curso' | 'Completada' | 'Cancelada'
+    responsable?: string
+    responsableId?: number
+    progreso?: number
+    fechaInicio?: string
+    fechaFin?: string
+}
+
 // ============================================
 // TAREA - Basado en Backend/Models/Domain/Tarea.cs
 // Backend REAL: TareaId, Nombre, Descripcion, Periodo, Monto, ActividadId
@@ -182,11 +178,11 @@ export interface Task {
     tareaId: number // TareaId
     nombre: string // Nombre
     descripcion: string // Descripcion
-    periodo: string // Periodo (string, ej: "Mes 1-3")
-    monto: number // Monto (decimal)
+    periodo: string // Periodo (ej: "Mes 1-3")
+    monto: number // Monto
     actividadId: number // ActividadId
 
-    // 🎭 CAMPOS MOCK (OPCIONALES - solo para desarrollo)
+    // 💡 CAMPOS SOLO FRONTEND (estado visual)
     id?: number // Alias de tareaId
     estado?: 'Pendiente' | 'En progreso' | 'Completada'
     responsable?: string
@@ -195,7 +191,7 @@ export interface Task {
 }
 
 // ============================================
-// NOTIFICACIONES (Mock - no hay backend aún)
+// NOTIFICACIONES / DASHBOARD (solo frontend)
 // ============================================
 
 export interface Notification {
@@ -208,10 +204,6 @@ export interface Notification {
     fecha: string
 }
 
-// ============================================
-// DASHBOARD (Mock - no hay backend aún)
-// ============================================
-
 export interface DashboardStats {
     proyectosActivos: number
     actividadesPendientes: number
@@ -222,7 +214,7 @@ export interface DashboardStats {
 }
 
 // ============================================
-// TIPOS DE CREACIÓN/ACTUALIZACIÓN
+// TIPOS DE CREACIÓN/ACTUALIZACIÓN (DTOs de entrada)
 // ============================================
 
 export interface CreateProject {
@@ -274,6 +266,10 @@ export interface UpdateTask {
     actividadId: number
 }
 
+// ============================================
+// SHAPES DIRECTOS DEL BACKEND (opcional)
+// ============================================
+
 export interface BackendUserDto {
     id: number
     firstName: string
@@ -305,4 +301,136 @@ export interface BackendTwoFactorInitResponse {
 
 export interface BackendErrorResponse {
     message?: string
+}
+
+// ============================================
+// RUBROS DETALLADOS - Basado en Backend Controllers
+// ============================================
+
+export interface TalentoHumano {
+    talentoHumanoId: number
+    rubroId: number
+    cargoEspecifico: string
+    semanas: number
+    total: number
+    ragEstado: string
+    periodoNum: number
+    periodoTipo: string
+    actividadId?: number
+}
+
+export interface EquiposSoftware {
+    equiposSoftwareId: number
+    rubroId: number
+    especificacionesTecnicas: string
+    cantidad: number
+    total: number
+    ragEstado: string
+    periodoNum: number
+    periodoTipo: string
+    actividadId?: number
+}
+
+export interface MaterialesInsumos {
+    materialesInsumosId: number
+    rubroId: number
+    materiales: string
+    total: number
+    ragEstado: string
+    periodoNum: number
+    periodoTipo: string
+    actividadId?: number
+}
+
+export interface ServiciosTecnologicos {
+    serviciosTecnologicosId: number
+    rubroId: number
+    descripcion: string
+    total: number
+    ragEstado: string
+    periodoNum: number
+    periodoTipo: string
+    actividadId?: number
+}
+
+export interface CapacitacionEventos {
+    capacitacionEventosId: number
+    rubroId: number
+    tema: string
+    cantidad: number
+    total: number
+    ragEstado: string
+    periodoNum: number
+    periodoTipo: string
+    actividadId?: number
+}
+
+export interface GastosViaje {
+    gastosViajeId: number
+    rubroId: number
+    costo: number
+    ragEstado: string
+    periodoNum: number
+    periodoTipo: string
+    actividadId?: number
+}
+
+export interface Rubro {
+    rubroId: number
+    actividadId: number
+    nombre: string
+    descripcion?: string
+}
+
+// ============================================
+// USUARIOS Y ROLES - Para administración
+// ============================================
+
+export interface RoleDetailed {
+    id: number
+    name: string
+    description: string
+    permissions: string
+    isActive: boolean
+    createdAt: string
+    updatedAt: string | null
+}
+
+export interface UserDetailed extends User {
+    role?: RoleDetailed
+}
+
+// ============================================
+// RAG SERVICE - Para integración con IA
+// ============================================
+
+export interface RAGQueryRequest {
+    question: string
+    projectId?: number
+    topK?: number
+}
+
+export interface RAGQueryResponse {
+    answer: string
+    sources: Array<{
+        content: string
+        metadata: Record<string, any>
+    }>
+}
+
+export interface RAGBudgetGenerationRequest {
+    projectId: number
+    projectDescription: string
+    budgetCategories: string[]
+    durationYears: number
+    activities?: Array<{
+        actividadId: number
+        nombre: string
+        descripcion: string
+        justificacion: string
+        especificacionesTecnicas: string
+        cantidadAnios: number
+        valorUnitario: number
+        duracionDias?: number
+    }>
 }

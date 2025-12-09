@@ -1,6 +1,6 @@
 import { LayoutList, Target, Users, DollarSign, FileText, CheckSquare } from 'lucide-react'
 
-type TabType = 'overview' | 'objectives' | 'team' | 'budget' | 'documents' | 'activities'
+type TabType = 'overview' | 'objectives' | 'team' | 'budget' | 'documents' | 'activities' | 'tasks'
 
 interface ProjectTabsProps {
     activeTab: TabType
@@ -15,6 +15,7 @@ export default function ProjectTabs({ activeTab, onTabChange }: ProjectTabsProps
         { id: 'budget' as TabType, label: 'Presupuesto', icon: DollarSign },
         { id: 'documents' as TabType, label: 'Documentos', icon: FileText },
         { id: 'activities' as TabType, label: 'Actividades', icon: CheckSquare },
+        { id: 'tasks' as TabType, label: 'Tareas', icon: CheckSquare },
     ]
 
     return (

@@ -7,8 +7,9 @@ interface ProjectCardProps {
 }
 
 export default function ProjectCard({ project }: ProjectCardProps) {
-    const getStatusColor = (estado: Project['estado']) => {
-        switch (estado) {
+    const getStatusColor = (estado?: Project['estado']) => {
+        const estadoActual = estado || 'En ejecución'
+        switch (estadoActual) {
             case 'En ejecución':
                 return 'bg-green-100 text-green-800'
             case 'En revisión':
@@ -23,7 +24,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
     }
 
     const formatCurrency = (amount?: number) => {
-        if (!amount || Number.isNaN(amount)) return 'Sin presupuesto'
+        if (!amount || Number.isNaN(amount)) return 'Por definir'
         return new Intl.NumberFormat('es-CO', {
             style: 'currency',
             currency: 'COP',
@@ -32,9 +33,9 @@ export default function ProjectCard({ project }: ProjectCardProps) {
     }
 
     const formatDate = (dateString?: string) => {
-        if (!dateString) return 'Sin fecha'
+        if (!dateString) return 'No especificada'
         const d = new Date(dateString)
-        if (Number.isNaN(d.getTime())) return 'Sin fecha'
+        if (Number.isNaN(d.getTime())) return 'No especificada'
         return d.toLocaleDateString('es-ES', {
             day: '2-digit',
             month: 'short',
@@ -61,18 +62,18 @@ export default function ProjectCard({ project }: ProjectCardProps) {
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                             <span className="text-xs font-medium text-gray-500">
-                                {project.codigo || `PROY-${project.id}`}
+                                {project.codigo || `SIGPI-${project.id}`}
                             </span>
                             <span
                                 className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                                     project.estado,
                                 )}`}
                             >
-                                {project.estado || 'Sin estado'}
+                                {project.estado || 'En ejecución'}
                             </span>
                         </div>
                         <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
-                            {project.nombre || 'Proyecto sin nombre'}
+                            {project.nombre || `Proyecto #${project.id}`}
                         </h3>
                     </div>
                     <div className="ml-4 text-right">
@@ -82,7 +83,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
                 </div>
 
                 <p className="text-sm text-gray-600 line-clamp-2">
-                    {project.descripcion || 'Sin descripción.'}
+                    {project.descripcion || 'Sin descripción disponible.'}
                 </p>
 
                 {/* Barra de progreso */}
@@ -127,10 +128,11 @@ export default function ProjectCard({ project }: ProjectCardProps) {
                         <div className="flex-1 min-w-0">
                             <p className="text-xs text-gray-500">Equipo</p>
                             <p className="text-sm font-medium text-gray-900 truncate">
-                                {participantes.length} miembros
+                                {participantes.length}{' '}
+                                {participantes.length === 1 ? 'miembro' : 'miembros'}
                             </p>
                             <p className="text-xs text-gray-500 truncate">
-                                {project.investigadorPrincipal || 'Sin investigador principal'}
+                                {project.investigadorPrincipal || 'Sin investigador'}
                             </p>
                         </div>
                     </div>
@@ -157,11 +159,14 @@ export default function ProjectCard({ project }: ProjectCardProps) {
                         <div className="flex-1 min-w-0">
                             <p className="text-xs text-gray-500">Objetivos</p>
                             <p className="text-sm font-medium text-gray-900">
-                                {objetivos.length} objetivos
+                                {objetivos.length}{' '}
+                                {objetivos.length === 1 ? 'objetivo' : 'objetivos'}
                             </p>
                             <p className="text-xs text-gray-500">
                                 {objetivos.filter((o) => o.estado === 'Completado').length}{' '}
-                                completados
+                                {objetivos.filter((o) => o.estado === 'Completado').length === 1
+                                    ? 'completado'
+                                    : 'completados'}
                             </p>
                         </div>
                     </div>
@@ -169,34 +174,47 @@ export default function ProjectCard({ project }: ProjectCardProps) {
             </div>
 
             {/* Footer con avatar del equipo */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-                <div className="flex items-center justify-between">
-                    <div className="flex -space-x-2">
-                        {participantes.slice(0, 4).map((participant) => (
-                            <img
-                                key={participant.id}
-                                src={
-                                    participant.profilePictureUrl ||
-                                    `https://i.pravatar.cc/150?img=${participant.id}`
-                                }
-                                alt={participant.nombre}
-                                className="w-8 h-8 rounded-full border-2 border-white"
-                                title={participant.nombre}
-                            />
-                        ))}
-                        {participantes.length > 4 && (
-                            <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center">
-                                <span className="text-xs font-medium text-gray-600">
-                                    +{participantes.length - 4}
-                                </span>
-                            </div>
-                        )}
+            {participantes.length > 0 && (
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                    <div className="flex items-center justify-between">
+                        <div className="flex -space-x-2">
+                            {participantes.slice(0, 4).map((participant) => (
+                                <img
+                                    key={participant.id}
+                                    src={
+                                        participant.profilePictureUrl ||
+                                        `https://i.pravatar.cc/150?img=${participant.id}`
+                                    }
+                                    alt={participant.nombre}
+                                    className="w-8 h-8 rounded-full border-2 border-white"
+                                    title={participant.nombre}
+                                />
+                            ))}
+                            {participantes.length > 4 && (
+                                <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center">
+                                    <span className="text-xs font-medium text-gray-600">
+                                        +{participantes.length - 4}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                        <span className="text-xs text-blue-600 font-medium group-hover:underline">
+                            Ver detalles →
+                        </span>
                     </div>
-                    <span className="text-xs text-blue-600 font-medium group-hover:underline">
-                        Ver detalles →
-                    </span>
                 </div>
-            </div>
+            )}
+
+            {/* Footer alternativo cuando no hay participantes */}
+            {participantes.length === 0 && (
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                    <div className="flex items-center justify-end">
+                        <span className="text-xs text-blue-600 font-medium group-hover:underline">
+                            Ver detalles →
+                        </span>
+                    </div>
+                </div>
+            )}
         </Link>
     )
 }

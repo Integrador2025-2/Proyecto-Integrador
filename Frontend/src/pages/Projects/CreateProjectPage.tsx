@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
-import { useProjectsStore } from '../../store/projectStore'
+import { useProjectStore } from '../../store/projectStore'
 import type { Project } from '../../types'
 import { apiService } from '../../services/api.service'
 
@@ -36,7 +36,7 @@ const initialFormState: ProjectFormState = {
 export default function CreateProjectPage() {
     const navigate = useNavigate()
     const user = useAuthStore((state) => state.user) // User autenticado [file:2]
-    const addProject = useProjectsStore((state) => state.addProject) // acción para guardar en global [file:2]
+    const addProject = useProjectStore((state) => state.addProject) // acción para guardar en global [file:2]
 
     const [form, setForm] = useState<ProjectFormState>(initialFormState)
     const [error, setError] = useState<string | null>(null)

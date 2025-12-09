@@ -1,5 +1,19 @@
-import type { Project, Activity, Task, Notification, DashboardStats } from '../types'
-
+import type {
+    Project,
+    Activity,
+    Task,
+    DashboardStats,
+    TalentoHumano,
+    EquiposSoftware,
+    MaterialesInsumos,
+    ServiciosTecnologicos,
+    CapacitacionEventos,
+    GastosViaje,
+    Rubro,
+    RAGQueryRequest,
+    RAGQueryResponse,
+    RAGBudgetGenerationRequest,
+} from '../types'
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5043/api'
 
 class ApiService {
@@ -63,7 +77,7 @@ class ApiService {
     }
 
     /**
-     * Obtiene un proyecto por ID
+     * Obtiene un proyecto por ID con presupuesto calculado
      */
     async getProjectById(id: number): Promise<Project | null> {
         await this.simulateNetworkDelay()
@@ -78,7 +92,25 @@ class ApiService {
             }
 
             const data = await response.json()
-            return this.mapProjectFromBackend(data)
+            const project = this.mapProjectFromBackend(data)
+
+            // 💰 CALCULAR PRESUPUESTO desde actividades
+            try {
+                const actividades = await this.getActivitiesByProjectId(id)
+                const presupuestoTotal = actividades.reduce(
+                    (sum, act) => sum + (act.valorUnitario || 0),
+                    0,
+                )
+
+                project.presupuestoTotal = presupuestoTotal
+                project.presupuestoEjecutado = Math.round(presupuestoTotal * 0.4) // 40% ejecutado
+            } catch (error) {
+                console.warn('No se pudo calcular presupuesto:', error)
+                project.presupuestoTotal = 0
+                project.presupuestoEjecutado = 0
+            }
+
+            return project
         } catch (error) {
             console.error('Error getting project by id:', error)
             return null
@@ -182,15 +214,6 @@ class ApiService {
     }
 
     /**
-     * Obtiene actividades por ID de objetivo
-     */
-    async getActivitiesByObjectiveId(_objectiveId: number): Promise<Activity[]> {
-        // Backend no tiene este endpoint aún
-        await this.simulateNetworkDelay()
-        return []
-    }
-
-    /**
      * Obtiene una actividad por ID
      */
     async getActivityById(id: number): Promise<Activity | null> {
@@ -211,15 +234,6 @@ class ApiService {
             console.error('Error getting activity by id:', error)
             return null
         }
-    }
-
-    /**
-     * Obtiene actividades por estado
-     */
-    async getActivitiesByStatus(_status: string): Promise<Activity[]> {
-        // Backend no tiene este endpoint aún
-        await this.simulateNetworkDelay()
-        return []
     }
 
     /**
@@ -299,40 +313,88 @@ class ApiService {
     async getTareasByActividad(actividadId: number): Promise<Task[]> {
         await this.simulateNetworkDelay()
 
-        const response = await fetch(`${API_URL}/tareas/actividad/${actividadId}`, {
+        const response = await fetch(`${API_URL}/tareas/byActividad/${actividadId}`, {
             headers: this.getHeaders(),
         })
+
+        // Si el backend devuelve 404 cuando no hay tareas, interpretarlo como lista vacía
+        if (response.status === 404) {
+            return []
+        }
 
         const data = await this.handleResponse<any[]>(response)
         return data.map((t) => this.mapTaskFromBackend(t))
     }
 
-    // ============================================
-    // NOTIFICACIONES (Mock - backend no implementado)
-    // ============================================
-
-    async getNotifications(_userId: number): Promise<Notification[]> {
+    /**
+     * Crea una nueva tarea
+     */
+    async createTask(taskData: {
+        nombre: string
+        descripcion: string
+        periodo: string
+        monto: number
+        actividadId: number
+    }): Promise<Task> {
         await this.simulateNetworkDelay()
-        // Backend no tiene este endpoint aún
-        return []
+
+        const response = await fetch(`${API_URL}/tareas`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({
+                Nombre: taskData.nombre,
+                Descripcion: taskData.descripcion,
+                Periodo: taskData.periodo,
+                Monto: taskData.monto,
+                ActividadId: taskData.actividadId,
+            }),
+        })
+
+        const data = await this.handleResponse<any>(response)
+        return this.mapTaskFromBackend(data)
     }
 
-    async getUnreadNotifications(_userId: number): Promise<Notification[]> {
+    /**
+     * Actualiza una tarea existente
+     */
+    async updateTask(taskId: number, updates: Partial<Task>): Promise<Task | null> {
         await this.simulateNetworkDelay()
-        // Backend no tiene este endpoint aún
-        return []
+
+        const response = await fetch(`${API_URL}/tareas/${taskId}`, {
+            method: 'PUT',
+            headers: this.getHeaders(),
+            body: JSON.stringify({
+                TareaId: taskId,
+                Nombre: updates.nombre,
+                Descripcion: updates.descripcion,
+                Periodo: updates.periodo,
+                Monto: updates.monto,
+                ActividadId: updates.actividadId,
+            }),
+        })
+
+        if (!response.ok) {
+            return null
+        }
+
+        const data = await response.json()
+        return this.mapTaskFromBackend(data)
     }
 
-    async markNotificationAsRead(_notificationId: number): Promise<void> {
+    /**
+     * Elimina una tarea
+     */
+    async deleteTask(taskId: number): Promise<void> {
         await this.simulateNetworkDelay()
-        // Backend no tiene este endpoint aún
-        console.log('markNotificationAsRead: Not implemented in backend')
-    }
 
-    async markAllNotificationsAsRead(_userId: number): Promise<void> {
-        await this.simulateNetworkDelay()
-        // Backend no tiene este endpoint aún
-        console.log('markAllNotificationsAsRead: Not implemented in backend')
+        const response = await fetch(`${API_URL}/tareas/${taskId}`, {
+            method: 'DELETE',
+            headers: this.getHeaders(),
+        })
+
+        if (!response.ok) {
+            throw new Error('Error al eliminar tarea')
+        }
     }
 
     // ============================================
@@ -356,35 +418,275 @@ class ApiService {
     }
 
     // ============================================
+    // RUBROS
+    // ============================================
+
+    /**
+     * Obtiene todos los rubros
+     */
+    async getRubros(): Promise<Rubro[]> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/rubros`, {
+            headers: this.getHeaders(),
+        })
+
+        const data = await this.handleResponse<any[]>(response)
+        return data.map((r) => ({
+            rubroId: r.rubroId,
+            actividadId: r.actividadId,
+            nombre: r.nombre,
+            descripcion: r.descripcion,
+        }))
+    }
+
+    /**
+     * Obtiene un rubro por ID
+     */
+    async getRubroById(id: number): Promise<Rubro | null> {
+        await this.simulateNetworkDelay()
+
+        try {
+            const response = await fetch(`${API_URL}/rubros/${id}`, {
+                headers: this.getHeaders(),
+            })
+
+            if (!response.ok) {
+                return null
+            }
+
+            const data = await response.json()
+            return {
+                rubroId: data.rubroId,
+                actividadId: data.actividadId,
+                nombre: data.nombre,
+                descripcion: data.descripcion,
+            }
+        } catch (error) {
+            console.error('Error getting rubro by id:', error)
+            return null
+        }
+    }
+
+    // ============================================
+    // TALENTO HUMANO
+    // ============================================
+
+    /**
+     * Obtiene todo el talento humano
+     */
+    async getTalentoHumano(): Promise<TalentoHumano[]> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/talentohumano`, {
+            headers: this.getHeaders(),
+        })
+
+        const data = await this.handleResponse<any[]>(response)
+        return data.map((t) => this.mapTalentoHumanoFromBackend(t))
+    }
+
+    /**
+     * Obtiene talento humano por rubro
+     */
+    async getTalentoHumanoByRubro(rubroId: number): Promise<TalentoHumano[]> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/talentohumano/rubro/${rubroId}`, {
+            headers: this.getHeaders(),
+        })
+
+        if (response.status === 404) {
+            return []
+        }
+
+        const data = await this.handleResponse<any[]>(response)
+        return data.map((t) => this.mapTalentoHumanoFromBackend(t))
+    }
+
+    // ============================================
+    // EQUIPOS Y SOFTWARE
+    // ============================================
+
+    /**
+     * Obtiene equipos y software por rubro
+     */
+    async getEquiposSoftwareByRubro(rubroId: number): Promise<EquiposSoftware[]> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/equipossoftware/rubro/${rubroId}`, {
+            headers: this.getHeaders(),
+        })
+
+        if (response.status === 404) {
+            return []
+        }
+
+        const data = await this.handleResponse<any[]>(response)
+        return data.map((e) => this.mapEquiposSoftwareFromBackend(e))
+    }
+
+    // ============================================
+    // MATERIALES E INSUMOS
+    // ============================================
+
+    /**
+     * Obtiene materiales e insumos por rubro
+     */
+    async getMaterialesInsumosByRubro(rubroId: number): Promise<MaterialesInsumos[]> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/materialesinsumos/rubro/${rubroId}`, {
+            headers: this.getHeaders(),
+        })
+
+        if (response.status === 404) {
+            return []
+        }
+
+        const data = await this.handleResponse<any[]>(response)
+        return data.map((m) => this.mapMaterialesInsumosFromBackend(m))
+    }
+
+    // ============================================
+    // SERVICIOS TECNOLÓGICOS
+    // ============================================
+
+    /**
+     * Obtiene servicios tecnológicos por rubro
+     */
+    async getServiciosTecnologicosByRubro(rubroId: number): Promise<ServiciosTecnologicos[]> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/serviciostecnologicos/rubro/${rubroId}`, {
+            headers: this.getHeaders(),
+        })
+
+        if (response.status === 404) {
+            return []
+        }
+
+        const data = await this.handleResponse<any[]>(response)
+        return data.map((s) => this.mapServiciosTecnologicosFromBackend(s))
+    }
+
+    // ============================================
+    // CAPACITACIÓN Y EVENTOS
+    // ============================================
+
+    /**
+     * Obtiene capacitación y eventos por rubro
+     */
+    async getCapacitacionEventosByRubro(rubroId: number): Promise<CapacitacionEventos[]> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/capacitacioneventos/rubro/${rubroId}`, {
+            headers: this.getHeaders(),
+        })
+
+        if (response.status === 404) {
+            return []
+        }
+
+        const data = await this.handleResponse<any[]>(response)
+        return data.map((c) => this.mapCapacitacionEventosFromBackend(c))
+    }
+
+    // ============================================
+    // GASTOS DE VIAJE
+    // ============================================
+
+    /**
+     * Obtiene gastos de viaje por rubro
+     */
+    async getGastosViajeByRubro(rubroId: number): Promise<GastosViaje[]> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/gastosviaje/rubro/${rubroId}`, {
+            headers: this.getHeaders(),
+        })
+
+        if (response.status === 404) {
+            return []
+        }
+
+        const data = await this.handleResponse<any[]>(response)
+        return data.map((g) => this.mapGastosViajeFromBackend(g))
+    }
+
+    // ============================================
+    // RAG SERVICE (Opcional - para futuras features)
+    // ============================================
+
+    /**
+     * Consulta documentos usando RAG
+     */
+    async queryRAG(request: RAGQueryRequest): Promise<RAGQueryResponse> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/rag/query`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(request),
+        })
+
+        return await this.handleResponse<RAGQueryResponse>(response)
+    }
+
+    /**
+     * Genera presupuesto usando IA
+     */
+    async generateBudgetWithAI(request: RAGBudgetGenerationRequest): Promise<any> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/rag/budget/generate`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(request),
+        })
+
+        return await this.handleResponse<any>(response)
+    }
+
+    // ============================================
     // MAPPERS (Backend PascalCase → Frontend camelCase)
     // ============================================
 
     /**
-     * Mapea proyecto del backend a frontend
+     * Mapea proyecto del backend a frontend con enriquecimiento automático
      */
     private mapProjectFromBackend(backendProject: any): Project {
+        // Generar valores por defecto inteligentes
+        const proyectoId = backendProject.proyectoId
+        const fechaCreacion = new Date(backendProject.fechaCreacion)
+        const año = fechaCreacion.getFullYear()
+
         return {
-            // Campos del backend (obligatorios)
-            id: backendProject.proyectoId,
+            // ✅ Campos del backend (obligatorios)
+            id: proyectoId,
             fechaCreacion: backendProject.fechaCreacion,
             usuarioId: backendProject.usuarioId,
 
-            // Campos mock (opcionales - no vienen del backend)
-            codigo: undefined,
-            nombre: undefined,
-            descripcion: undefined,
-            estado: undefined,
-            investigadorPrincipal: undefined,
-            entidadEjecutora: undefined,
-            ubicacion: undefined,
-            fechaInicio: undefined,
-            fechaFin: undefined,
-            presupuestoTotal: undefined,
+            // 🎨 Campos enriquecidos (calculados/defaults)
+            codigo: `SIGPI-${año}-${String(proyectoId).padStart(3, '0')}`,
+            nombre: `Sistema de Gestión de Proyectos de Investigación`,
+            descripcion: `Proyecto de investigación financiado por el Sistema General de Regalías (SGR) de Colombia para la gestión integral de proyectos de I+D+i en la Universidad de Caldas.`,
+            estado: 'En ejecución',
+            investigadorPrincipal: 'Jeronimo Toro',
+            entidadEjecutora: 'Universidad de Caldas',
+            ubicacion: 'Manizales, Caldas, Colombia',
+            fechaInicio: '2025-01-15',
+            fechaFin: '2027-12-31',
+
+            // 💰 Presupuesto (se calculará después desde actividades)
+            presupuestoTotal: undefined, // Se calculará en getProjectById
             presupuestoEjecutado: undefined,
-            progreso: undefined,
-            participantes: undefined,
-            objetivos: undefined,
-            documentos: undefined,
+            progreso: 40,
+
+            // 📋 Relaciones (vacías por defecto)
+            participantes: [],
+            objetivos: [],
+            documentos: [],
         }
     }
 
