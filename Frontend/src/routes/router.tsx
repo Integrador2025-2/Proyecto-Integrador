@@ -7,6 +7,8 @@ import ProjectsPage from '../pages/Projects/ProjectsPage'
 import ProjectDetailPage from '../pages/Projects/ProjectDetailPage'
 import GoogleCallback from '../pages/auth/GoogleCallback'
 import CreateProjectPage from '../pages/Projects/CreateProjectPage'
+import ActivitiesListPage from '@/pages/activities/ActivitiesListPage'
+import ActivityDetailPage from '@/pages/activities/ActivityDetailPage'
 
 export const router = createBrowserRouter([
     {
@@ -44,6 +46,14 @@ export const router = createBrowserRouter([
             {
                 path: 'projects/:id',
                 element: <ProjectDetailPage />,
+            },
+            {
+                path: 'activities',
+                element: <ActivitiesListPage />,
+            },
+            {
+                path: 'activities/:id',
+                element: <ActivityDetailPage />,
             },
         ],
     },

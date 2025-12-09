@@ -1,7 +1,7 @@
-// src/pages/ProjectDetail/components/tabs/ActivitiesTab.tsx
+// src/pages/Projects/components/tabs/ActivitiesTab.tsx
 
 import { useEffect, useState } from 'react'
-import { ChevronDown, ChevronRight, ClipboardList, Clock, User } from 'lucide-react'
+import { ChevronDown, ChevronRight, ClipboardList, Clock, User, Filter } from 'lucide-react'
 import { apiService } from '../../../../services/api.service'
 import type { Activity, Task } from '../../../../types'
 
@@ -18,11 +18,15 @@ type ActivityWithExtras = Activity & {
     tareas?: Task[]
 }
 
+type StatusFilter = 'all' | 'pendiente' | 'en-curso' | 'completada'
+
 export default function ActivitiesTab({ projectId }: ActivitiesTabProps) {
     const [activities, setActivities] = useState<ActivityWithExtras[]>([])
+    const [filteredActivities, setFilteredActivities] = useState<ActivityWithExtras[]>([])
     const [expandedIds, setExpandedIds] = useState<number[]>([])
     const [isLoading, setIsLoading] = useState<boolean>(true)
     const [error, setError] = useState<string | null>(null)
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
     useEffect(() => {
         if (!projectId) return
@@ -35,7 +39,7 @@ export default function ActivitiesTab({ projectId }: ActivitiesTabProps) {
                 // 1) Cargar actividades reales desde backend
                 const backendActivities = await apiService.getActivitiesByProjectId(projectId)
 
-                // 2) Simular campos mock en frontend
+                // 2) Enriquecer campos mock en frontend (estado, progreso, fechas, responsable)
                 const enrichedActivities: ActivityWithExtras[] = backendActivities.map(
                     (a, index) => {
                         const estados: Activity['estado'][] = [
@@ -43,10 +47,11 @@ export default function ActivitiesTab({ projectId }: ActivitiesTabProps) {
                             'En curso',
                             'Completada',
                         ]
-                        const estado = estados[index % estados.length]
+                        const estado = a.estado || estados[index % estados.length]
 
                         const progreso =
-                            estado === 'Completada' ? 100 : estado === 'En curso' ? 50 : 10
+                            a.progreso ??
+                            (estado === 'Completada' ? 100 : estado === 'En curso' ? 50 : 10)
 
                         const today = new Date()
                         const startOffset = index * 7
@@ -68,7 +73,7 @@ export default function ActivitiesTab({ projectId }: ActivitiesTabProps) {
                             ...a,
                             estado,
                             responsable: a.responsable || `Responsable ${index + 1}`,
-                            progreso: a.progreso ?? progreso,
+                            progreso,
                             fechaInicio: a.fechaInicio ?? fechaInicioMock,
                             fechaFin: a.fechaFin ?? fechaFinMock,
                             tareas: [],
@@ -77,6 +82,7 @@ export default function ActivitiesTab({ projectId }: ActivitiesTabProps) {
                 )
 
                 setActivities(enrichedActivities)
+                setFilteredActivities(applyStatusFilter(enrichedActivities, statusFilter))
             } catch (err) {
                 const message =
                     err instanceof Error ? err.message : 'Error al cargar actividades del proyecto'
@@ -89,6 +95,28 @@ export default function ActivitiesTab({ projectId }: ActivitiesTabProps) {
 
         void loadActivities()
     }, [projectId])
+
+    useEffect(() => {
+        setFilteredActivities(applyStatusFilter(activities, statusFilter))
+    }, [activities, statusFilter])
+
+    const applyStatusFilter = (
+        list: ActivityWithExtras[],
+        status: StatusFilter,
+    ): ActivityWithExtras[] => {
+        if (status === 'all') return list
+
+        const map: Record<StatusFilter, string | null> = {
+            all: null,
+            pendiente: 'Pendiente',
+            'en-curso': 'En curso',
+            completada: 'Completada',
+        }
+        const target = map[status]
+        if (!target) return list
+
+        return list.filter((a) => a.estado === target)
+    }
 
     const toggleExpand = (actividadId: number) => {
         setExpandedIds((prev) =>
@@ -179,7 +207,22 @@ export default function ActivitiesTab({ projectId }: ActivitiesTabProps) {
 
     return (
         <div className="space-y-4">
-            {activities.map((activity) => {
+            {/* Filtro de estado */}
+            <div className="flex items-center justify-end gap-2 mb-1">
+                <Filter className="w-4 h-4 text-gray-500" />
+                <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                    className="border rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                    <option value="all">Todas</option>
+                    <option value="pendiente">Pendientes</option>
+                    <option value="en-curso">En curso</option>
+                    <option value="completada">Completadas</option>
+                </select>
+            </div>
+
+            {filteredActivities.map((activity) => {
                 const isExpanded = expandedIds.includes(activity.actividadId)
                 const tareas = activity.tareas ?? []
                 const totalTareas = tareas.length

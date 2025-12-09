@@ -2,7 +2,7 @@ import { Plus, Search, Filter, FolderKanban } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { useProjects } from '../../hooks/useProjects'
-import { useProjectsStore } from '../../store/projectStore'
+import { useProjectStore } from '../../store/projectStore'
 import ProjectCard from './ProjectCard'
 
 type ProjectFilter = 'all' | 'En ejecución' | 'En revisión' | 'Finalizado' | 'Planificación'
@@ -19,7 +19,7 @@ export default function ProjectsPage() {
         getProjectStats,
     } = useProjects()
 
-    const { projects: enrichedProjects } = useProjectsStore((state) => state)
+    const { projects: enrichedProjects } = useProjectStore((state) => state)
 
     const mergedProjects = projects.map((p) => {
         const enriched = enrichedProjects.find((ep) => ep.id === p.id)

@@ -140,6 +140,7 @@ class AuthService {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        Authorization: `Bearer ${this.getToken()}`,
                     },
                     body: JSON.stringify({ refreshToken }),
                 })
@@ -190,24 +191,13 @@ class AuthService {
             throw new Error('No autenticado')
         }
 
-        // Convertir de frontend (camelCase) a backend (PascalCase) tipado
-        const backendUpdates: Partial<BackendUserDto> & { Id?: number } = {}
+        const backendUpdates: Record<string, any> = { Id: userId }
 
-        if (updates.firstName !== undefined) {
-            ;(backendUpdates as unknown as { FirstName: string }).FirstName = updates.firstName
-        }
-        if (updates.lastName !== undefined) {
-            ;(backendUpdates as unknown as { LastName: string }).LastName = updates.lastName
-        }
-        if (updates.email !== undefined) {
-            ;(backendUpdates as unknown as { Email: string }).Email = updates.email
-        }
-        if (updates.isActive !== undefined) {
-            ;(backendUpdates as unknown as { IsActive: boolean }).IsActive = updates.isActive
-        }
-        if (updates.roleId !== undefined) {
-            ;(backendUpdates as unknown as { RoleId: number }).RoleId = updates.roleId
-        }
+        if (updates.firstName !== undefined) backendUpdates.FirstName = updates.firstName
+        if (updates.lastName !== undefined) backendUpdates.LastName = updates.lastName
+        if (updates.email !== undefined) backendUpdates.Email = updates.email
+        if (updates.isActive !== undefined) backendUpdates.IsActive = updates.isActive
+        if (updates.roleId !== undefined) backendUpdates.RoleId = updates.roleId
 
         const response = await fetch(`${API_URL}/users/${userId}`, {
             method: 'PUT',
@@ -215,7 +205,7 @@ class AuthService {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ id: userId, ...backendUpdates }),
+            body: JSON.stringify(backendUpdates),
         })
 
         if (!response.ok) {
@@ -273,7 +263,10 @@ class AuthService {
         })
 
         if (!response.ok) {
-            throw new Error('Error al refrescar token')
+            const errorData: BackendErrorResponse = await response
+                .json()
+                .catch(() => ({ message: 'Error al refrescar token' }))
+            throw new Error(errorData.message || 'Error al refrescar token')
         }
 
         const data: BackendAuthResponse = await response.json()
@@ -305,6 +298,9 @@ class AuthService {
         return data.authUrl
     }
 
+    /**
+     * Login con Google usando token
+     */
     async loginWithGoogle(googleToken: string): Promise<AuthResponse> {
         const response = await fetch(`${API_URL}/auth/google-login`, {
             method: 'POST',
