@@ -22,7 +22,8 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         }
     }
 
-    const formatCurrency = (amount: number) => {
+    const formatCurrency = (amount?: number) => {
+        if (!amount || Number.isNaN(amount)) return 'Sin presupuesto'
         return new Intl.NumberFormat('es-CO', {
             style: 'currency',
             currency: 'COP',
@@ -30,13 +31,24 @@ export default function ProjectCard({ project }: ProjectCardProps) {
         }).format(amount)
     }
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('es-ES', {
+    const formatDate = (dateString?: string) => {
+        if (!dateString) return 'Sin fecha'
+        const d = new Date(dateString)
+        if (Number.isNaN(d.getTime())) return 'Sin fecha'
+        return d.toLocaleDateString('es-ES', {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
         })
     }
+
+    const progreso = project.progreso ?? 0
+    const participantes = project.participantes ?? []
+    const objetivos = project.objetivos ?? []
+    const presupuestoTotal = project.presupuestoTotal ?? 0
+    const presupuestoEjecutado = project.presupuestoEjecutado ?? 0
+    const ejecutadoPct =
+        presupuestoTotal > 0 ? ((presupuestoEjecutado / presupuestoTotal) * 100).toFixed(0) : '0'
 
     return (
         <Link
@@ -49,38 +61,40 @@ export default function ProjectCard({ project }: ProjectCardProps) {
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                             <span className="text-xs font-medium text-gray-500">
-                                {project.codigo}
+                                {project.codigo || `PROY-${project.id}`}
                             </span>
                             <span
                                 className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                                     project.estado,
                                 )}`}
                             >
-                                {project.estado}
+                                {project.estado || 'Sin estado'}
                             </span>
                         </div>
                         <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
-                            {project.nombre}
+                            {project.nombre || 'Proyecto sin nombre'}
                         </h3>
                     </div>
                     <div className="ml-4 text-right">
-                        <div className="text-3xl font-bold text-blue-600">{project.progreso}%</div>
+                        <div className="text-3xl font-bold text-blue-600">{progreso}%</div>
                         <div className="text-xs text-gray-500 mt-1">Progreso</div>
                     </div>
                 </div>
 
-                <p className="text-sm text-gray-600 line-clamp-2">{project.descripcion}</p>
+                <p className="text-sm text-gray-600 line-clamp-2">
+                    {project.descripcion || 'Sin descripción.'}
+                </p>
 
                 {/* Barra de progreso */}
                 <div className="mt-4">
                     <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
                         <span>Progreso del proyecto</span>
-                        <span className="font-medium">{project.progreso}%</span>
+                        <span className="font-medium">{progreso}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                             className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${project.progreso}%` }}
+                            style={{ width: `${progreso}%` }}
                         />
                     </div>
                 </div>
@@ -113,10 +127,10 @@ export default function ProjectCard({ project }: ProjectCardProps) {
                         <div className="flex-1 min-w-0">
                             <p className="text-xs text-gray-500">Equipo</p>
                             <p className="text-sm font-medium text-gray-900 truncate">
-                                {project.participantes.length} miembros
+                                {participantes.length} miembros
                             </p>
                             <p className="text-xs text-gray-500 truncate">
-                                {project.investigadorPrincipal}
+                                {project.investigadorPrincipal || 'Sin investigador principal'}
                             </p>
                         </div>
                     </div>
@@ -129,16 +143,9 @@ export default function ProjectCard({ project }: ProjectCardProps) {
                         <div className="flex-1 min-w-0">
                             <p className="text-xs text-gray-500">Presupuesto Total</p>
                             <p className="text-sm font-medium text-gray-900 truncate">
-                                {formatCurrency(project.presupuestoTotal)}
+                                {formatCurrency(presupuestoTotal)}
                             </p>
-                            <p className="text-xs text-gray-500">
-                                Ejecutado:{' '}
-                                {(
-                                    (project.presupuestoEjecutado / project.presupuestoTotal) *
-                                    100
-                                ).toFixed(0)}
-                                %
-                            </p>
+                            <p className="text-xs text-gray-500">Ejecutado: {ejecutadoPct}%</p>
                         </div>
                     </div>
 
@@ -150,10 +157,10 @@ export default function ProjectCard({ project }: ProjectCardProps) {
                         <div className="flex-1 min-w-0">
                             <p className="text-xs text-gray-500">Objetivos</p>
                             <p className="text-sm font-medium text-gray-900">
-                                {project.objetivos.length} objetivos
+                                {objetivos.length} objetivos
                             </p>
                             <p className="text-xs text-gray-500">
-                                {project.objetivos.filter((o) => o.estado === 'Completado').length}{' '}
+                                {objetivos.filter((o) => o.estado === 'Completado').length}{' '}
                                 completados
                             </p>
                         </div>
@@ -165,7 +172,7 @@ export default function ProjectCard({ project }: ProjectCardProps) {
             <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
                 <div className="flex items-center justify-between">
                     <div className="flex -space-x-2">
-                        {project.participantes.slice(0, 4).map((participant) => (
+                        {participantes.slice(0, 4).map((participant) => (
                             <img
                                 key={participant.id}
                                 src={
@@ -177,10 +184,10 @@ export default function ProjectCard({ project }: ProjectCardProps) {
                                 title={participant.nombre}
                             />
                         ))}
-                        {project.participantes.length > 4 && (
+                        {participantes.length > 4 && (
                             <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center">
                                 <span className="text-xs font-medium text-gray-600">
-                                    +{project.participantes.length - 4}
+                                    +{participantes.length - 4}
                                 </span>
                             </div>
                         )}

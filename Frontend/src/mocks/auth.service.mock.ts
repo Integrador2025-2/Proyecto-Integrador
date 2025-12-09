@@ -11,7 +11,7 @@ class AuthServiceMock {
     /**
      * Inicia el proceso de login 2FA (Paso 1)
      */
-    async initLogin(email: string, password: string): Promise<TwoFactorInitResponse> {
+    async initLogin(email: string): Promise<TwoFactorInitResponse> {
         await this.simulateNetworkDelay()
 
         const response = mockLogin(email)
@@ -265,6 +265,36 @@ class AuthServiceMock {
     private async simulateNetworkDelay(minMs: number = 300, maxMs: number = 800): Promise<void> {
         const delay = Math.random() * (maxMs - minMs) + minMs
         return new Promise((resolve) => setTimeout(resolve, delay))
+    }
+    async getGoogleAuthUrl(): Promise<string> {
+        // URL falsa solo para desarrollo con mocks
+        return 'https://accounts.google.com/o/oauth2/v2/auth?mock=1'
+    }
+
+    async loginWithGoogle(googleToken: string): Promise<AuthResponse> {
+        console.log('🔁 Mock loginWithGoogle called with token:', googleToken)
+
+        const mockUser: User = {
+            id: 1,
+            firstName: 'Mock',
+            lastName: 'User',
+            email: 'mock.google@sigpi.edu.co',
+            fullName: 'Mock User',
+            createdAt: new Date().toISOString(),
+            updatedAt: null,
+            isActive: true,
+            roleId: 2,
+            roleName: 'Investigador',
+            provider: 'google',
+            profilePictureUrl: undefined,
+        }
+
+        return {
+            token: 'mock-google-token',
+            refreshToken: 'mock-google-refresh-token',
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            user: mockUser,
+        }
     }
 }
 

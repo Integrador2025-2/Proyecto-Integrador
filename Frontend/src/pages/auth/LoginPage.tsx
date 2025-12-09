@@ -6,7 +6,7 @@ type LoginState = 'credentials' | 'verification'
 
 export default function LoginPage() {
     const navigate = useNavigate()
-    const { initLogin, verifyTwoFactor, isLoading, error } = useAuth()
+    const { initLogin, verifyTwoFactor, loginWithGoogleRedirect, isLoading, error } = useAuth()
 
     const [state, setState] = useState<LoginState>('credentials')
     const [email, setEmail] = useState('')
@@ -50,6 +50,21 @@ export default function LoginPage() {
         const value = e.target.value.replace(/\D/g, '').slice(0, 6)
         setCode(value)
     }
+
+    const handleGoogleLogin = async () => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/google-auth-url`)
+            const data = await response.json()
+
+            // DEBUG: ver qué URL está devolviendo el backend
+            console.log('authUrl desde backend:', data.authUrl)
+
+            window.location.href = data.authUrl
+        } catch (error) {
+            console.error('Error obteniendo Google auth URL', error)
+        }
+    }
+
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
@@ -116,6 +131,16 @@ export default function LoginPage() {
                         >
                             {isLoading ? 'Procesando...' : 'Continuar'}
                         </button>
+
+                        <button
+                            type="button"
+                            onClick={handleGoogleLogin}
+                            disabled={isLoading}
+                            className="mt-4 w-full flex items-center justify-center gap-2 border border-gray-300 py-3 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <span className="text-lg">G</span>
+                            <span>Continuar con Google</span>
+                        </button>
                     </form>
                 ) : (
                     <form onSubmit={handleVerificationSubmit} className="space-y-6">
@@ -132,19 +157,19 @@ export default function LoginPage() {
                                 value={code}
                                 onChange={handleCodeChange}
                                 required
-                                maxLength={5}
+                                maxLength={6}
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-center text-2xl font-mono tracking-widest"
                                 placeholder="000000"
                                 autoComplete="off"
                             />
                             <p className="mt-2 text-xs text-gray-500 text-center">
-                                Ingrese el código de 5 dígitos
+                                Ingrese el código de 6 dígitos
                             </p>
                         </div>
 
                         <button
                             type="submit"
-                            disabled={isLoading || code.length !== 5}
+                            disabled={isLoading || code.length !== 6}
                             className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? 'Verificando...' : 'Verificar Código'}
