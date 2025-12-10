@@ -309,10 +309,6 @@ def tab_budget(project_id_default: int):
         # Convertir a valores simples para st.metric
         source_docs = len(source_docs_raw) if isinstance(source_docs_raw, list) else source_docs_raw
         source_activities = len(source_activities_raw) if isinstance(source_activities_raw, list) else source_activities_raw
-        
-        # Convertir a valores simples para st.metric
-        source_docs = len(source_docs_raw) if isinstance(source_docs_raw, list) else source_docs_raw
-        source_activities = len(source_activities_raw) if isinstance(source_activities_raw, list) else source_activities_raw
 
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1:

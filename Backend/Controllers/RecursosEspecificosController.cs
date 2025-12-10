@@ -4,6 +4,7 @@ using Backend.Queries.RecursosEspecificos;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Controllers;
 
@@ -122,6 +123,14 @@ public class RecursosEspecificosController : ControllerBase
 
             var recurso = await _mediator.Send(command);
             return CreatedAtAction(nameof(GetById), new { id = recurso.RecursoEspecificoId }, recurso);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("FK_RecursosEspecificos_Recursos_RecursoId") == true)
+        {
+            _logger.LogError(ex, "Error al crear el recurso específico - FK RecursoId inválido");
+            return StatusCode(500, new { 
+                error = "Error al crear el recurso específico", 
+                details = $"El RecursoId {command.RecursoId} no existe. Primero debe crear un Recurso usando POST /api/recursos con ActividadId, EntidadId y RubroId válidos." 
+            });
         }
         catch (Exception ex)
         {
