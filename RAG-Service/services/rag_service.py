@@ -92,9 +92,8 @@ class RAGService:
             if value is None:
                 # Convertir None a string vacío o valor por defecto según el tipo esperado
                 if key == "project_id":
-                    # Si project_id es None, usar -1 como valor por defecto para indicar "sin proyecto"
-                    # Esto permite que ChromaDB pueda filtrar correctamente
-                    cleaned[key] = -1
+                    # Si project_id es None, lanzar error ya que es obligatorio
+                    raise ValueError("project_id es obligatorio y no puede ser None")
                 else:
                     # Para otros campos None, usar string vacío
                     cleaned[key] = ""
@@ -173,7 +172,7 @@ class RAGService:
                             "document_id": doc_id,
                             "filename": metadata.get('filename', 'unknown'),
                             "document_type": metadata.get('document_type', 'unknown'),
-                            "project_id": project_id,
+                            "project_id": metadata.get('project_id', project_id),  # Usar el project_id de metadata
                             "upload_date": metadata.get('added_at', ''),
                             "chunks": []
                         }

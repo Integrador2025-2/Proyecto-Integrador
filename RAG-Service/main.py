@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -60,10 +60,20 @@ async def health_check():
 @app.post("/documents/upload")
 async def upload_document(
     file: UploadFile = File(...),
-    project_id: int = None,
-    document_type: str = "project_document"
+    project_id: int = Form(..., description="ID del proyecto (obligatorio)"),
+    document_type: str = Form("project_document", description="Tipo de documento")
 ):
-    """Subir y procesar un documento de proyecto"""
+    """
+    Subir y procesar un documento de proyecto.
+    
+    Args:
+        file: Archivo a subir (PDF, DOCX, TXT, XLSX)
+        project_id: ID del proyecto (OBLIGATORIO)
+        document_type: Tipo de documento (por defecto: "project_document")
+    
+    Returns:
+        Información del documento procesado incluyendo document_id y project_id
+    """
     try:
         # Validar tipo de archivo
         allowed_extensions = ['.pdf', '.docx', '.txt', '.xlsx']
