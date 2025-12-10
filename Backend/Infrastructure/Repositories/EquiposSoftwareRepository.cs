@@ -7,41 +7,65 @@ namespace Backend.Infrastructure.Repositories;
 public class EquiposSoftwareRepository : IEquiposSoftwareRepository
 {
     private readonly ApplicationDbContext _context;
-    public EquiposSoftwareRepository(ApplicationDbContext context) => _context = context;
 
-    public async Task<List<EquiposSoftware>> GetAllAsync() => await _context.Set<EquiposSoftware>().AsNoTracking().ToListAsync();
-    public async Task<EquiposSoftware?> GetByIdAsync(int id) => await _context.Set<EquiposSoftware>().FirstOrDefaultAsync(e => e.EquiposSoftwareId == id);
-    public async Task<List<EquiposSoftware>> GetByRubroIdAsync(int rubroId) => await _context.Set<EquiposSoftware>().Where(e => e.RubroId == rubroId).AsNoTracking().ToListAsync();
-    public async Task<EquiposSoftware> CreateAsync(EquiposSoftware entity)
+    public EquiposSoftwareRepository(ApplicationDbContext context)
     {
-        _context.Set<EquiposSoftware>().Add(entity);
-        await _context.SaveChangesAsync();
-        return entity;
+        _context = context;
     }
 
-    public async Task<EquiposSoftware?> UpdateAsync(EquiposSoftware entity)
+    public async Task<EquiposSoftware?> GetByIdAsync(int equiposSoftwareId)
     {
-        var existing = await _context.Set<EquiposSoftware>().FirstOrDefaultAsync(e => e.EquiposSoftwareId == entity.EquiposSoftwareId);
-        if (existing == null) return null;
-
-        existing.EspecificacionesTecnicas = entity.EspecificacionesTecnicas;
-        existing.Cantidad = entity.Cantidad;
-        existing.Total = entity.Total;
-        existing.RagEstado = entity.RagEstado;
-        existing.PeriodoNum = entity.PeriodoNum;
-        existing.PeriodoTipo = entity.PeriodoTipo;
-        existing.RubroId = entity.RubroId;
-
-        await _context.SaveChangesAsync();
-        return existing;
+        return await _context.EquiposSoftware
+            .Include(es => es.RecursoEspecifico)
+            .FirstOrDefaultAsync(es => es.EquiposSoftwareId == equiposSoftwareId);
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<IEnumerable<EquiposSoftware>> GetAllAsync()
     {
-        var existing = await _context.Set<EquiposSoftware>().FirstOrDefaultAsync(e => e.EquiposSoftwareId == id);
-        if (existing == null) return false;
-        _context.Set<EquiposSoftware>().Remove(existing);
+        return await _context.EquiposSoftware
+            .Include(es => es.RecursoEspecifico)
+            .ToListAsync();
+    }
+
+    public async Task<EquiposSoftware?> GetByRecursoEspecificoIdAsync(int recursoEspecificoId)
+    {
+        return await _context.EquiposSoftware
+            .Include(es => es.RecursoEspecifico)
+            .FirstOrDefaultAsync(es => es.RecursoEspecificoId == recursoEspecificoId);
+    }
+
+    public async Task<EquiposSoftware> CreateAsync(EquiposSoftware equiposSoftware)
+    {
+        await _context.EquiposSoftware.AddAsync(equiposSoftware);
+        await _context.SaveChangesAsync();
+        return equiposSoftware;
+    }
+
+    public async Task<EquiposSoftware> UpdateAsync(EquiposSoftware equiposSoftware)
+    {
+        _context.EquiposSoftware.Update(equiposSoftware);
+        await _context.SaveChangesAsync();
+        return equiposSoftware;
+    }
+
+    public async Task<bool> DeleteAsync(int equiposSoftwareId)
+    {
+        var equiposSoftware = await _context.EquiposSoftware
+            .FirstOrDefaultAsync(es => es.EquiposSoftwareId == equiposSoftwareId);
+        
+        if (equiposSoftware == null)
+        {
+            return false;
+        }
+
+        _context.EquiposSoftware.Remove(equiposSoftware);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<bool> ExistsAsync(int equiposSoftwareId)
+    {
+        return await _context.EquiposSoftware
+            .AnyAsync(es => es.EquiposSoftwareId == equiposSoftwareId);
     }
 }

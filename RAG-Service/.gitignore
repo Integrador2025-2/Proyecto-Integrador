@@ -350,3 +350,5 @@ coverage_html_report/
 *.swp
 *.swo
 *.bak
+# Generated files
+generated_budgets/*.xlsx

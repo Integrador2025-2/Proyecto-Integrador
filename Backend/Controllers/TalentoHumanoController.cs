@@ -1,46 +1,142 @@
-using AutoMapper;
-using Backend.Infrastructure.Repositories;
-using Backend.Models.DTOs;
-using Backend.Queries.TalentoHumano;
 using Backend.Commands.TalentoHumano;
+using Backend.Queries.TalentoHumano;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/talentohumano")]
 public class TalentoHumanoController : ControllerBase
 {
     private readonly IMediator _mediator;
-    private readonly ITalentoHumanoRepository _repo;
-    private readonly IMapper _mapper;
+    private readonly ILogger<TalentoHumanoController> _logger;
 
-    public TalentoHumanoController(IMediator mediator, ITalentoHumanoRepository repo, IMapper mapper)
+    public TalentoHumanoController(IMediator mediator, ILogger<TalentoHumanoController> logger)
     {
         _mediator = mediator;
-        _repo = repo;
-        _mapper = mapper;
+        _logger = logger;
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<TalentoHumanoDto>>> GetAll()
+    public async Task<IActionResult> GetAll()
     {
-        var items = await _mediator.Send(new GetAllTalentoHumanoQuery());
-        return Ok(items);
+        var query = new GetAllTalentoHumanoQuery();
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 
-    [HttpGet("rubro/{rubroId}")]
-    public async Task<ActionResult<List<TalentoHumanoDto>>> GetByRubro(int rubroId)
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
     {
-        var items = await _repo.GetByRubroIdAsync(rubroId);
-        return Ok(items.Select(x => _mapper.Map<TalentoHumanoDto>(x)).ToList());
+        var query = new GetTalentoHumanoByIdQuery(id);
+        var result = await _mediator.Send(query);
+        
+        if (result == null)
+        {
+            return NotFound($"TalentoHumano with ID {id} not found.");
+        }
+        
+        return Ok(result);
+    }
+
+    [HttpGet("recurso-especifico/{recursoEspecificoId}")]
+    public async Task<IActionResult> GetByRecursoEspecificoId(int recursoEspecificoId)
+    {
+        var query = new GetTalentoHumanoByRecursoEspecificoIdQuery(recursoEspecificoId);
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 
     [HttpPost]
-    public async Task<ActionResult<TalentoHumanoDto>> Create(CreateTalentoHumanoCommand command)
+    public async Task<IActionResult> Create([FromBody] CreateTalentoHumanoCommand command)
     {
-        var created = await _mediator.Send(command);
-        return CreatedAtAction(nameof(GetAll), new { id = created.TalentoHumanoId }, created);
+        if (command.RecursoEspecificoId <= 0)
+        {
+            return BadRequest("RecursoEspecificoId must be greater than 0.");
+        }
+
+        if (command.ContratacionId <= 0)
+        {
+            return BadRequest("ContratacionId must be greater than 0.");
+        }
+
+        if (string.IsNullOrWhiteSpace(command.CargoEspecifico))
+        {
+            return BadRequest("CargoEspecifico is required.");
+        }
+
+        try
+        {
+            var result = await _mediator.Send(command);
+            return CreatedAtAction(nameof(GetById), new { id = result.TalentoHumanoId }, result);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("FK_TalentoHumano_RecursosEspecificos_RecursoEspecificoId") == true)
+        {
+            return StatusCode(500, new { 
+                error = "Error al crear el talento humano", 
+                details = $"El RecursoEspecificoId {command.RecursoEspecificoId} no existe. Primero debe crear un RecursoEspecifico usando POST /api/recursosespecificos con RecursoId y Nombre válidos." 
+            });
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("FK_TalentoHumano_Contrataciones_ContratacionId") == true)
+        {
+            return StatusCode(500, new { 
+                error = "Error al crear el talento humano", 
+                details = $"El ContratacionId {command.ContratacionId} no existe. Primero debe crear una Contratacion usando POST /api/contrataciones con los datos de contratación válidos." 
+            });
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "DbUpdateException creating TalentoHumano");
+            return StatusCode(500, new { 
+                error = "Error al crear el talento humano", 
+                details = ex.InnerException?.Message ?? ex.Message,
+                fullError = ex.ToString()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating TalentoHumano");
+            return StatusCode(500, new { error = "An error occurred while creating the TalentoHumano", details = ex.Message });
+        }
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateTalentoHumanoCommand command)
+    {
+        if (id != command.TalentoHumanoId)
+        {
+            return BadRequest("ID mismatch.");
+        }
+
+        if (command.ContratacionId <= 0)
+        {
+            return BadRequest("ContratacionId must be greater than 0.");
+        }
+
+        if (string.IsNullOrWhiteSpace(command.CargoEspecifico))
+        {
+            return BadRequest("CargoEspecifico is required.");
+        }
+
+        try
+        {
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var command = new DeleteTalentoHumanoCommand(id);
+        await _mediator.Send(command);
+        return NoContent();
     }
 }

@@ -101,6 +101,31 @@ export interface ProjectDocument {
     url: string
 }
 
+// ============================================
+// OBJETIVO - Basado en Backend/Models/Domain/Objetivo.cs
+// Estructura real: Proyecto → Objetivo → CadenaDeValor → Actividad
+// ============================================
+
+export interface Objetivo {
+    objetivoId: number
+    proyectoId: number
+    nombre: string
+    descripcion?: string
+    cadenasDeValor?: CadenaDeValor[]
+}
+
+// ============================================
+// CADENA DE VALOR - Basado en Backend/Models/Domain/CadenaDeValor.cs
+// ============================================
+
+export interface CadenaDeValor {
+    cadenaDeValorId: number
+    objetivoId: number
+    nombre: string
+    objetivoEspecifico: string
+    actividades?: Activity[]
+}
+
 export interface Project {
     // ✅ CAMPOS DEL BACKEND (OBLIGATORIOS) - Proyecto.cs / ProyectoDto.cs
     id: number // ProyectoId
@@ -121,7 +146,7 @@ export interface Project {
     presupuestoEjecutado?: number
     progreso?: number
     participantes?: ProjectParticipant[]
-    objetivos?: Objective[]
+    objetivos?: Objetivo[] // ✅ Nueva jerarquía real
     documentos?: ProjectDocument[]
 }
 
@@ -147,19 +172,23 @@ export interface RubroItem {
 export interface Activity {
     // ✅ CAMPOS DEL BACKEND (OBLIGATORIOS) - Actividad.cs + ActividadDto.cs
     actividadId: number // ActividadId
-    proyectoId: number // ProyectoId
+    cadenaDeValorId: number // CadenaDeValorId - ✅ Estructura real BD
     nombre: string // Nombre
     descripcion: string // Descripcion
     justificacion: string // Justificacion
-    totalxAnios: number[] // TotalxAnios
-    cantidadAnios: number // CantidadAnios
+    duracionAnios: number // DuracionAnios
     especificacionesTecnicas: string // EspecificacionesTecnicas
     valorUnitario: number // ValorUnitario
-    valorTotal: number // ValorTotal (calculado en backend o derivado)
-    rubros: RubroItem[] // Rubros (lista unificada por tipo)
+
+    // Campos opcionales del backend
+    totalxAnios?: number[] // TotalxAnios (si existe)
+    cantidadAnios?: number // CantidadAnios (alias de duracionAnios)
+    valorTotal?: number // ValorTotal (calculado)
+    rubros?: RubroItem[] // Rubros (lista unificada por tipo)
 
     // 💡 CAMPOS SOLO FRONTEND (estado visual)
     id?: number // Alias de actividadId
+    proyectoId?: number // ❌ No existe en BD pero se puede calcular navegando
     estado?: 'Pendiente' | 'En curso' | 'Completada' | 'Cancelada'
     responsable?: string
     responsableId?: number
@@ -227,7 +256,7 @@ export interface UpdateProject {
 }
 
 export interface CreateActivity {
-    proyectoId: number
+    cadenaDeValorId: number
     nombre: string
     descripcion: string
     justificacion: string
@@ -239,7 +268,7 @@ export interface CreateActivity {
 
 export interface UpdateActivity {
     actividadId: number
-    proyectoId: number
+    cadenaDeValorId: number
     nombre: string
     descripcion: string
     justificacion: string
@@ -310,6 +339,7 @@ export interface BackendErrorResponse {
 export interface TalentoHumano {
     talentoHumanoId: number
     rubroId: number
+    recursoEspecificoId: number
     cargoEspecifico: string
     semanas: number
     total: number
@@ -322,6 +352,7 @@ export interface TalentoHumano {
 export interface EquiposSoftware {
     equiposSoftwareId: number
     rubroId: number
+    recursoEspecificoId: number
     especificacionesTecnicas: string
     cantidad: number
     total: number
@@ -333,6 +364,7 @@ export interface EquiposSoftware {
 
 export interface MaterialesInsumos {
     materialesInsumosId: number
+    recursoEspecificoId: number
     rubroId: number
     materiales: string
     total: number
@@ -344,6 +376,7 @@ export interface MaterialesInsumos {
 
 export interface ServiciosTecnologicos {
     serviciosTecnologicosId: number
+    recursoEspecificoId: number
     rubroId: number
     descripcion: string
     total: number
@@ -356,6 +389,7 @@ export interface ServiciosTecnologicos {
 export interface CapacitacionEventos {
     capacitacionEventosId: number
     rubroId: number
+    recursoEspecificoId: number
     tema: string
     cantidad: number
     total: number
@@ -366,6 +400,7 @@ export interface CapacitacionEventos {
 }
 
 export interface GastosViaje {
+    recursoEspecificoId: number
     gastosViajeId: number
     rubroId: number
     costo: number
@@ -377,8 +412,6 @@ export interface GastosViaje {
 
 export interface Rubro {
     rubroId: number
-    actividadId: number
-    nombre: string
     descripcion?: string
 }
 

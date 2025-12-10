@@ -43,9 +43,9 @@ class LLMService:
             raise ValueError("GEMINI_API_KEY no está configurada en las variables de entorno")
         
         genai.configure(api_key=api_key)
-        # Gemini 1.5 Flash es el modelo más reciente y rápido
-        # Alternativas: "gemini-pro", "gemini-1.5-pro-latest"
-        self.model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-latest")
+        # Gemini 1.5 Pro es mejor para respuestas más largas y detalladas
+        # Alternativas: "gemini-1.5-flash-latest" (más rápido), "gemini-2.0-flash-exp" (experimental)
+        self.model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-pro-latest")
         self.model = genai.GenerativeModel(self.model_name)
     
     async def generate_answer(self, question: str, context: str, system_prompt: Optional[str] = None) -> str:
@@ -93,7 +93,7 @@ class LLMService:
         return response.choices[0].message.content.strip()
     
     async def _generate_answer_gemini(self, question: str, context: str, system_prompt: str) -> str:
-        """Generar respuesta usando Google Gemini"""
+        """Generar respuesta usando Google Gemini con soporte para respuestas más largas"""
         prompt = f"""{system_prompt}
 
 Contexto:
@@ -101,14 +101,28 @@ Contexto:
 
 Pregunta: {question}
 
+Instrucciones adicionales:
+- Proporciona una respuesta completa, detallada y bien estructurada
+- Utiliza toda la información relevante del contexto proporcionado
+- Si hay múltiples aspectos en la pregunta, aborda cada uno de manera exhaustiva
+- Incluye ejemplos, detalles y explicaciones cuando sea apropiado
+- Estructura tu respuesta con párrafos claros y, si es necesario, con subtítulos o listas
+- No te limites a respuestas cortas; sé exhaustivo y completo
+
 Respuesta:"""
         
         try:
+            # Aumentar significativamente max_output_tokens para respuestas más largas
+            # Gemini 1.5 Pro puede manejar hasta 8192 tokens de salida
+            max_tokens = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "8192"))
+            
             response = self.model.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
                     temperature=self.temperature,
-                    max_output_tokens=2000
+                    max_output_tokens=max_tokens,
+                    top_p=0.95,  # Nucleus sampling para mejor calidad
+                    top_k=40  # Diversidad en la generación
                 ),
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -250,17 +264,22 @@ Responde SOLO con el JSON, sin texto adicional."""
         return json.loads(response.choices[0].message.content.strip())
     
     async def _generate_budget_gemini(self, system_prompt: str, user_prompt: str) -> Dict[str, Any]:
-        """Generar presupuesto usando Google Gemini"""
+        """Generar presupuesto usando Google Gemini con soporte para respuestas más largas"""
         full_prompt = f"""{system_prompt}
 
 {user_prompt}"""
         
         try:
+            # Aumentar max_output_tokens para presupuestos más detallados
+            max_tokens = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS_BUDGET", "8192"))
+            
             response = self.model.generate_content(
                 full_prompt,
                 generation_config=genai.types.GenerationConfig(
                     temperature=self.temperature,
-                    max_output_tokens=8000,  # Aumentado para respuestas más largas
+                    max_output_tokens=max_tokens,  # Máximo para respuestas detalladas
+                    top_p=0.95,
+                    top_k=40,
                     response_mime_type="application/json"  # Forzar respuesta JSON
                 ),
                 safety_settings={
@@ -498,17 +517,22 @@ Responde SOLO con el JSON, sin texto adicional."""
         return json.loads(response.choices[0].message.content.strip())
     
     async def _generate_resource_plan_gemini(self, system_prompt: str, user_prompt: str) -> Dict[str, Any]:
-        """Generar plan de recursos usando Google Gemini"""
+        """Generar plan de recursos usando Google Gemini con soporte para respuestas más largas"""
         full_prompt = f"""{system_prompt}
 
 {user_prompt}"""
         
         try:
+            # Aumentar max_output_tokens para planes más detallados
+            max_tokens = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS_PLAN", "8192"))
+            
             response = self.model.generate_content(
                 full_prompt,
                 generation_config=genai.types.GenerationConfig(
                     temperature=self.temperature,
-                    max_output_tokens=6000,
+                    max_output_tokens=max_tokens,
+                    top_p=0.95,
+                    top_k=40,
                     response_mime_type="application/json"
                 ),
                 safety_settings={
@@ -606,3 +630,53 @@ Responde SOLO con el JSON, sin texto adicional."""
                 e.doc,
                 e.pos
             )
+
+    async def extract_activities_from_documents(self, context: str, project_id: int) -> Dict[str, Any]:
+        """
+        Extrae todas las actividades mencionadas en los documentos del proyecto.
+        """
+        system_prompt = """Eres un experto en análisis de proyectos.
+Tu tarea es extraer TODAS las actividades mencionadas en los documentos del proyecto.
+
+IMPORTANTE:
+- Extrae cada actividad que encuentres en el texto.
+- Para cada actividad, captura: nombre, descripción, justificación (si existe), especificaciones técnicas (si existen).
+- Si se menciona duración o valores monetarios, inclúyelos.
+- NO inventes información que no esté en el texto.
+- NO te preocupes por objetivos, cadenas de valor o jerarquías complejas.
+- SOLO enfócate en listar las actividades encontradas.
+
+FORMATO DE RESPUESTA:
+Debes responder ÚNICAMENTE con un objeto JSON válido:
+{
+    "project_id": 123,
+    "activities": [
+        {
+            "name": "Nombre de la actividad",
+            "description": "Descripción de la actividad",
+            "justification": "Justificación si existe en el texto o null",
+            "technical_specifications": "Especificaciones técnicas si existen o null",
+            "duration_years": 1,
+            "unit_value": 0
+        }
+    ],
+    "total_activities": 0
+}
+"""
+        user_prompt = f"Extrae todas las actividades del proyecto (ID: {project_id}) basándote en el siguiente contexto:\n\n{context}"
+        
+        try:
+            if self.provider == "openai":
+                response_text = await self._generate_answer_openai(user_prompt, context, system_prompt)
+            else:
+                response_text = await self._generate_answer_gemini(user_prompt, context, system_prompt)
+            
+            result = self._parse_json_response(response_text)
+            # Asegurarse de que total_activities esté actualizado
+            if "activities" in result:
+                result["total_activities"] = len(result["activities"])
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error extrayendo actividades: {str(e)}")
+            return {"project_id": project_id, "activities": [], "total_activities": 0}

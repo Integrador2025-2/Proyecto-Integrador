@@ -47,17 +47,27 @@ class BudgetExtractor:
             ]
         }
         
-        # Palabras clave comunes para identificar columnas
+        # Palabras clave comunes para identificar columnas (terminología colombiana)
         self.column_keywords = {
-            "actividad": ["actividad", "tarea", "item", "descripción", "descripcion", "nombre", "concepto"],
-            "cantidad": ["cantidad", "cant", "unidades", "número", "numero", "qty"],
-            "valor_unitario": ["valor unitario", "costo unitario", "precio unitario", "v. unitario", "c. unitario"],
-            "total": ["total", "valor total", "costo total", "subtotal", "monto"],
-            "justificacion": ["justificación", "justificacion", "descripción técnica", "especificaciones"],
+            "actividad": ["actividad", "tarea", "item", "ítem", "descripción", "descripcion", "nombre", "concepto"],
+            "cantidad": ["cantidad", "cant", "unidades", "número", "numero", "qty", "unid"],
+            "valor_unitario": [
+                "valor unitario", "v. unitario", "costo unitario", "c. unitario", 
+                "precio unitario", "p. unitario", "valor/u", "precio/u"
+            ],
+            "total": ["total", "valor total", "costo total", "subtotal", "monto", "v. total"],
+            "justificacion": ["justificación", "justificacion", "descripción técnica", "especificaciones", "observaciones"],
             "especificaciones": ["especificaciones", "especificaciones técnicas", "specs", "detalles técnicos"],
             "periodo": ["periodo", "período", "año", "anio", "mes", "trimestre", "semestre"],
             "rubro": ["rubro", "categoría", "categoria", "tipo", "clasificación", "clasificacion"]
         }
+        
+        # Palabras a ignorar en filas (no son ítems válidos)
+        self.ignore_keywords = [
+            "total", "subtotal", "suma", "gran total", "total general",
+            "nota", "notas", "observación", "observaciones", "pie de página",
+            "encabezado", "título", "resumen", "conclusión"
+        ]
     
     def identify_rubro_from_text(self, text: str) -> Optional[str]:
         """Identificar el rubro al que pertenece un texto basándose en palabras clave"""
@@ -208,9 +218,13 @@ class BudgetExtractor:
             if pd.isna(value) or str(value).strip() == "":
                 return True
             
-            # Si parece ser un encabezado (palabras clave de encabezado)
-            value_lower = str(value).lower()
-            if any(header in value_lower for header in ["actividad", "descripción", "total", "subtotal"]):
+            # Si parece ser un encabezado o palabra clave a ignorar
+            value_lower = str(value).lower().strip()
+            if any(header in value_lower for header in ["actividad", "descripción", "descripcion", "item", "ítem"]):
+                return True
+            
+            # Ignorar filas con palabras clave (TOTAL, SUBTOTAL, NOTA, etc.)
+            if any(keyword in value_lower for keyword in self.ignore_keywords):
                 return True
         
         return False
@@ -249,18 +263,30 @@ class BudgetExtractor:
             # Prioridad: columna > nombre > sheet
             activity["rubro"] = rubro_from_column or rubro_from_name or rubro_from_sheet or "Otros"
             
-            # Extraer valores numéricos
+            # Extraer valores numéricos con validación estricta
             if "cantidad" in column_mapping:
                 cantidad = row[column_mapping["cantidad"]]
-                activity["cantidad"] = self._safe_numeric(cantidad, 1)
+                cantidad_val = self._safe_numeric(cantidad)
+                # Validar que CANTIDAD sea numérica > 0
+                if cantidad_val is None or cantidad_val <= 0:
+                    logger.debug(f"Fila ignorada: cantidad inválida ({cantidad}) para actividad '{activity['nombre']}'")
+                    return None
+                activity["cantidad"] = cantidad_val
             else:
                 activity["cantidad"] = 1
             
             if "valor_unitario" in column_mapping:
                 valor_unitario = row[column_mapping["valor_unitario"]]
-                activity["valor_unitario"] = self._safe_numeric(valor_unitario, 0)
+                valor_unitario_val = self._safe_numeric(valor_unitario)
+                # Validar que VALOR UNITARIO sea numérico > 0
+                if valor_unitario_val is None or valor_unitario_val <= 0:
+                    logger.debug(f"Fila ignorada: valor unitario inválido ({valor_unitario}) para actividad '{activity['nombre']}'")
+                    return None
+                activity["valor_unitario"] = valor_unitario_val
             else:
-                activity["valor_unitario"] = None
+                # Si no hay valor unitario, no podemos calcular total
+                logger.debug(f"Fila ignorada: falta valor unitario para actividad '{activity['nombre']}'")
+                return None
             
             if "total" in column_mapping:
                 total = row[column_mapping["total"]]
@@ -302,10 +328,13 @@ class BudgetExtractor:
             logger.warning(f"Error extrayendo actividad de fila: {str(e)}")
             return None
     
-    def _safe_numeric(self, value: Any, default: float = 0.0) -> Optional[float]:
-        """Convertir un valor a numérico de forma segura"""
+    def _safe_numeric(self, value: Any, default: Optional[float] = None) -> Optional[float]:
+        """
+        Convertir un valor a numérico de forma segura.
+        Retorna None si no se puede convertir (para validación estricta).
+        """
         if pd.isna(value):
-            return default if default is not None else None
+            return default
         
         try:
             # Si es string, limpiar formato (comas, símbolos de moneda, etc.)

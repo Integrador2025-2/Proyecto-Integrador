@@ -607,6 +607,31 @@ class BudgetAutomationService:
             
         except Exception as e:
             return None
+
+    async def extract_activities_from_documents(self, project_id: int) -> Dict[str, Any]:
+        """
+        Extrae todas las actividades mencionadas en los documentos del proyecto.
+        """
+        # 1. Obtener documentos del proyecto
+        project_docs = await self.rag_service.get_project_documents(project_id)
+        
+        if not project_docs:
+            return {"project_id": project_id, "activities": [], "total_activities": 0}
+            
+        # 2. Preparar contexto
+        context = ""
+        for doc in project_docs:
+            # Limitar el tamaño del contexto si es necesario
+            content = doc.get("content", "")
+            if len(content) > 15000:
+                content = content[:15000] + "..."
+            context += f"\n--- Documento: {doc.get('filename')} ---\n{content}\n"
+            
+        # 3. Llamar al LLM
+        if self.use_llm and self.llm_service:
+            return await self.llm_service.extract_activities_from_documents(context, project_id)
+        
+        return {"project_id": project_id, "activities": [], "total_activities": 0}
     
     async def _extract_budget_from_project_documents(self, project_id: int) -> Optional[Dict[str, Any]]:
         """

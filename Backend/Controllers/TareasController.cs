@@ -1,10 +1,9 @@
-using Microsoft.AspNetCore.Mvc;
-using MediatR;
-using Backend.Models.DTOs;
 using Backend.Commands.Tareas;
+using Backend.Models.DTOs;
 using Backend.Queries.Tareas;
-using System.Threading.Tasks;
-using System.Collections.Generic;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers;
 
@@ -20,46 +19,59 @@ public class TareasController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IEnumerable<TareaDto>> GetAll()
+    public async Task<ActionResult<IEnumerable<TareaDto>>> GetAll()
     {
-        return await _mediator.Send(new GetAllTareasQuery());
+        var query = new GetAllTareasQuery();
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<TareaDto>> GetById(int id)
     {
-        var dto = await _mediator.Send(new GetTareaByIdQuery { TareaId = id });
-        if (dto == null) return NotFound();
-        return Ok(dto);
+        var query = new GetTareaByIdQuery { TareaId = id };
+        var result = await _mediator.Send(query);
+        
+        if (result == null)
+            return NotFound();
+            
+        return Ok(result);
     }
 
-    [HttpGet("byActividad/{actividadId}")]
-    public async Task<IEnumerable<TareaDto>> GetByActividad(int actividadId)
+    [HttpGet("actividad/{actividadId}")]
+    public async Task<ActionResult<IEnumerable<TareaDto>>> GetByActividadId(int actividadId)
     {
-        return await _mediator.Send(new GetTareasByActividadQuery { ActividadId = actividadId });
+        var query = new GetTareasByActividadIdQuery { ActividadId = actividadId };
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 
     [HttpPost]
-    public async Task<ActionResult<TareaDto>> Create(CreateTareaCommand command)
+    public async Task<ActionResult<TareaDto>> Create([FromBody] CreateTareaCommand command)
     {
-        var dto = await _mediator.Send(command);
-        return CreatedAtAction(nameof(GetById), new { id = dto.TareaId }, dto);
+        var result = await _mediator.Send(command);
+        return CreatedAtAction(nameof(GetById), new { id = result.TareaId }, result);
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult<TareaDto>> Update(int id, UpdateTareaCommand command)
+    public async Task<ActionResult<TareaDto>> Update(int id, [FromBody] UpdateTareaCommand command)
     {
-        if (id != command.TareaId) return BadRequest();
-        var dto = await _mediator.Send(command);
-        if (dto == null) return NotFound();
-        return Ok(dto);
+        if (id != command.TareaId)
+            return BadRequest();
+
+        var result = await _mediator.Send(command);
+        return Ok(result);
     }
 
     [HttpDelete("{id}")]
     public async Task<ActionResult> Delete(int id)
     {
-        var ok = await _mediator.Send(new DeleteTareaCommand { TareaId = id });
-        if (!ok) return NotFound();
+        var command = new DeleteTareaCommand { TareaId = id };
+        var result = await _mediator.Send(command);
+        
+        if (!result)
+            return NotFound();
+            
         return NoContent();
     }
 }

@@ -7,41 +7,65 @@ namespace Backend.Infrastructure.Repositories;
 public class ServiciosTecnologicosRepository : IServiciosTecnologicosRepository
 {
     private readonly ApplicationDbContext _context;
-    public ServiciosTecnologicosRepository(ApplicationDbContext context) => _context = context;
 
-    public async Task<List<ServiciosTecnologicos>> GetAllAsync() => await _context.Set<ServiciosTecnologicos>().AsNoTracking().ToListAsync();
-
-    public async Task<ServiciosTecnologicos?> GetByIdAsync(int id) => await _context.Set<ServiciosTecnologicos>().FirstOrDefaultAsync(s => s.ServiciosTecnologicosId == id);
-
-    public async Task<List<ServiciosTecnologicos>> GetByRubroIdAsync(int rubroId) => await _context.Set<ServiciosTecnologicos>().Where(s => s.RubroId == rubroId).AsNoTracking().ToListAsync();
-
-    public async Task<ServiciosTecnologicos> CreateAsync(ServiciosTecnologicos entity)
+    public ServiciosTecnologicosRepository(ApplicationDbContext context)
     {
-        _context.Set<ServiciosTecnologicos>().Add(entity);
-        await _context.SaveChangesAsync();
-        return entity;
+        _context = context;
     }
 
-    public async Task<ServiciosTecnologicos?> UpdateAsync(ServiciosTecnologicos entity)
+    public async Task<ServiciosTecnologicos?> GetByIdAsync(int serviciosTecnologicosId)
     {
-        var existing = await _context.Set<ServiciosTecnologicos>().FirstOrDefaultAsync(s => s.ServiciosTecnologicosId == entity.ServiciosTecnologicosId);
-        if (existing == null) return null;
-        existing.RubroId = entity.RubroId;
-        existing.Descripcion = entity.Descripcion;
-        existing.Total = entity.Total;
-        existing.RagEstado = entity.RagEstado;
-        existing.PeriodoNum = entity.PeriodoNum;
-        existing.PeriodoTipo = entity.PeriodoTipo;
-        await _context.SaveChangesAsync();
-        return existing;
+        return await _context.ServiciosTecnologicos
+            .Include(st => st.RecursoEspecifico)
+            .FirstOrDefaultAsync(st => st.ServiciosTecnologicosId == serviciosTecnologicosId);
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<IEnumerable<ServiciosTecnologicos>> GetAllAsync()
     {
-        var existing = await _context.Set<ServiciosTecnologicos>().FirstOrDefaultAsync(s => s.ServiciosTecnologicosId == id);
-        if (existing == null) return false;
-        _context.Set<ServiciosTecnologicos>().Remove(existing);
+        return await _context.ServiciosTecnologicos
+            .Include(st => st.RecursoEspecifico)
+            .ToListAsync();
+    }
+
+    public async Task<ServiciosTecnologicos?> GetByRecursoEspecificoIdAsync(int recursoEspecificoId)
+    {
+        return await _context.ServiciosTecnologicos
+            .Include(st => st.RecursoEspecifico)
+            .FirstOrDefaultAsync(st => st.RecursoEspecificoId == recursoEspecificoId);
+    }
+
+    public async Task<ServiciosTecnologicos> CreateAsync(ServiciosTecnologicos serviciosTecnologicos)
+    {
+        await _context.ServiciosTecnologicos.AddAsync(serviciosTecnologicos);
+        await _context.SaveChangesAsync();
+        return serviciosTecnologicos;
+    }
+
+    public async Task<ServiciosTecnologicos> UpdateAsync(ServiciosTecnologicos serviciosTecnologicos)
+    {
+        _context.ServiciosTecnologicos.Update(serviciosTecnologicos);
+        await _context.SaveChangesAsync();
+        return serviciosTecnologicos;
+    }
+
+    public async Task<bool> DeleteAsync(int serviciosTecnologicosId)
+    {
+        var serviciosTecnologicos = await _context.ServiciosTecnologicos
+            .FirstOrDefaultAsync(st => st.ServiciosTecnologicosId == serviciosTecnologicosId);
+        
+        if (serviciosTecnologicos == null)
+        {
+            return false;
+        }
+
+        _context.ServiciosTecnologicos.Remove(serviciosTecnologicos);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<bool> ExistsAsync(int serviciosTecnologicosId)
+    {
+        return await _context.ServiciosTecnologicos
+            .AnyAsync(st => st.ServiciosTecnologicosId == serviciosTecnologicosId);
     }
 }

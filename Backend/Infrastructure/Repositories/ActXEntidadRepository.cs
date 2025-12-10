@@ -16,49 +16,63 @@ public class ActXEntidadRepository : IActXEntidadRepository
     public async Task<ActXEntidad?> GetByIdAsync(int id)
     {
         return await _context.ActXEntidades
-            .Include(ae => ae.Entidad)
-            .Include(ae => ae.Actividad)
-            .FirstOrDefaultAsync(ae => ae.ActXEntidadId == id);
+            .Include(a => a.Actividad)
+            .Include(a => a.Entidad)
+            .FirstOrDefaultAsync(a => a.Id == id);
     }
 
-    public async Task<List<ActXEntidad>> GetAllAsync(int? actividadId = null)
+    public async Task<IEnumerable<ActXEntidad>> GetAllAsync()
     {
-        var q = _context.ActXEntidades
-            .Include(ae => ae.Entidad)
-            .Include(ae => ae.Actividad)
-            .AsQueryable();
-
-        if (actividadId.HasValue)
-            q = q.Where(ae => ae.ActividadId == actividadId.Value);
-
-        return await q.ToListAsync();
+        return await _context.ActXEntidades
+            .Include(a => a.Actividad)
+            .Include(a => a.Entidad)
+            .ToListAsync();
     }
 
-    public async Task<ActXEntidad> CreateAsync(ActXEntidad actxEntidad)
+    public async Task<IEnumerable<ActXEntidad>> GetByActividadIdAsync(int actividadId)
     {
-        _context.ActXEntidades.Add(actxEntidad);
+        return await _context.ActXEntidades
+            .Include(a => a.Actividad)
+            .Include(a => a.Entidad)
+            .Where(a => a.ActividadId == actividadId)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<ActXEntidad>> GetByEntidadIdAsync(int entidadId)
+    {
+        return await _context.ActXEntidades
+            .Include(a => a.Actividad)
+            .Include(a => a.Entidad)
+            .Where(a => a.EntidadId == entidadId)
+            .ToListAsync();
+    }
+
+    public async Task<ActXEntidad> CreateAsync(ActXEntidad actXEntidad)
+    {
+        _context.ActXEntidades.Add(actXEntidad);
         await _context.SaveChangesAsync();
-        return actxEntidad;
+        return actXEntidad;
     }
 
-    public async Task<ActXEntidad> UpdateAsync(ActXEntidad actxEntidad)
+    public async Task<ActXEntidad> UpdateAsync(ActXEntidad actXEntidad)
     {
-        _context.ActXEntidades.Update(actxEntidad);
+        _context.ActXEntidades.Update(actXEntidad);
         await _context.SaveChangesAsync();
-        return actxEntidad;
+        return actXEntidad;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task DeleteAsync(int id)
     {
-        var e = await _context.ActXEntidades.FindAsync(id);
-        if (e == null) return false;
-        _context.ActXEntidades.Remove(e);
-        await _context.SaveChangesAsync();
-        return true;
+        var actXEntidad = await GetByIdAsync(id);
+        if (actXEntidad != null)
+        {
+            _context.ActXEntidades.Remove(actXEntidad);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task<bool> ExistsAsync(int id)
     {
-        return await _context.ActXEntidades.AnyAsync(e => e.ActXEntidadId == id);
+        return await _context.ActXEntidades.AnyAsync(a => a.Id == id);
     }
 }

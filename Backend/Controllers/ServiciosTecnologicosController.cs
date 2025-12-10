@@ -1,10 +1,8 @@
-using MediatR;
-using Microsoft.AspNetCore.Mvc;
-using Backend.Models.DTOs;
-using Backend.Queries.ServiciosTecnologicos;
 using Backend.Commands.ServiciosTecnologicos;
-using Backend.Infrastructure.Repositories;
-using AutoMapper;
+using Backend.Queries.ServiciosTecnologicos;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers;
 
@@ -13,59 +11,148 @@ namespace Backend.Controllers;
 public class ServiciosTecnologicosController : ControllerBase
 {
     private readonly IMediator _mediator;
-    private readonly IServiciosTecnologicosRepository _repo;
-    private readonly IMapper _mapper;
+    private readonly ILogger<ServiciosTecnologicosController> _logger;
 
-    public ServiciosTecnologicosController(IMediator mediator, IServiciosTecnologicosRepository repo, IMapper mapper)
+    public ServiciosTecnologicosController(IMediator mediator, ILogger<ServiciosTecnologicosController> logger)
     {
         _mediator = mediator;
-        _repo = repo;
-        _mapper = mapper;
+        _logger = logger;
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<ServiciosTecnologicosDto>>> GetAll()
+    public async Task<IActionResult> GetAll()
     {
-        var items = await _repo.GetAllAsync();
-        return Ok(items.Select(x => _mapper.Map<ServiciosTecnologicosDto>(x)).ToList());
-    }
-
-    [HttpGet("rubro/{rubroId}")]
-    public async Task<ActionResult<List<ServiciosTecnologicosDto>>> GetByRubro(int rubroId)
-    {
-        var items = await _repo.GetByRubroIdAsync(rubroId);
-        return Ok(items.Select(x => _mapper.Map<ServiciosTecnologicosDto>(x)).ToList());
+        try
+        {
+            var query = new GetAllServiciosTecnologicosQuery();
+            var result = await _mediator.Send(query);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all servicios tecnologicos");
+            return StatusCode(500, "Internal server error");
+        }
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<ServiciosTecnologicosDto>> GetById(int id)
+    public async Task<IActionResult> GetById(int id)
     {
-        var result = await _mediator.Send(new GetServiciosTecnologicosByIdQuery(id));
-        if (result == null) return NotFound();
-        return Ok(result);
+        try
+        {
+            var query = new GetServiciosTecnologicosByIdQuery { ServiciosTecnologicosId = id };
+            var result = await _mediator.Send(query);
+            
+            if (result == null)
+            {
+                return NotFound($"ServiciosTecnologicos with ID {id} not found");
+            }
+            
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting servicios tecnologicos by ID: {Id}", id);
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    [HttpGet("recurso-especifico/{recursoEspecificoId}")]
+    public async Task<IActionResult> GetByRecursoEspecificoId(int recursoEspecificoId)
+    {
+        try
+        {
+            var query = new GetServiciosTecnologicosByRecursoEspecificoIdQuery { RecursoEspecificoId = recursoEspecificoId };
+            var result = await _mediator.Send(query);
+            
+            if (result == null)
+            {
+                return NotFound($"ServiciosTecnologicos with RecursoEspecificoId {recursoEspecificoId} not found");
+            }
+            
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting servicios tecnologicos by RecursoEspecificoId: {RecursoEspecificoId}", recursoEspecificoId);
+            return StatusCode(500, "Internal server error");
+        }
     }
 
     [HttpPost]
-    public async Task<ActionResult<ServiciosTecnologicosDto>> Create([FromBody] CreateServiciosTecnologicosCommand command)
+    public async Task<IActionResult> Create([FromBody] CreateServiciosTecnologicosCommand command)
     {
-        var result = await _mediator.Send(command);
-        return CreatedAtAction(nameof(GetById), new { id = result.ServiciosTecnologicosId }, result);
+        try
+        {
+            if (command.RecursoEspecificoId <= 0)
+            {
+                return BadRequest("RecursoEspecificoId must be greater than 0");
+            }
+
+            if (string.IsNullOrWhiteSpace(command.Descripcion))
+            {
+                return BadRequest("Descripcion is required");
+            }
+
+            var result = await _mediator.Send(command);
+            return CreatedAtAction(nameof(GetById), new { id = result.ServiciosTecnologicosId }, result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating servicios tecnologicos");
+            return StatusCode(500, "Internal server error");
+        }
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult<ServiciosTecnologicosDto>> Update(int id, [FromBody] UpdateServiciosTecnologicosCommand command)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateServiciosTecnologicosCommand command)
     {
-        if (id != command.ServiciosTecnologicosId) return BadRequest();
-        var result = await _mediator.Send(command);
-        if (result == null) return NotFound();
-        return Ok(result);
+        try
+        {
+            if (id != command.ServiciosTecnologicosId)
+            {
+                return BadRequest("ID mismatch");
+            }
+
+            if (string.IsNullOrWhiteSpace(command.Descripcion))
+            {
+                return BadRequest("Descripcion is required");
+            }
+
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "ServiciosTecnologicos not found: {Id}", id);
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating servicios tecnologicos: {Id}", id);
+            return StatusCode(500, "Internal server error");
+        }
     }
 
     [HttpDelete("{id}")]
-    public async Task<ActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        var deleted = await _mediator.Send(new DeleteServiciosTecnologicosCommand(id));
-        if (!deleted) return NotFound();
-        return NoContent();
+        try
+        {
+            var command = new DeleteServiciosTecnologicosCommand { ServiciosTecnologicosId = id };
+            var result = await _mediator.Send(command);
+            
+            if (!result)
+            {
+                return NotFound($"ServiciosTecnologicos with ID {id} not found");
+            }
+            
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting servicios tecnologicos: {Id}", id);
+            return StatusCode(500, "Internal server error");
+        }
     }
 }

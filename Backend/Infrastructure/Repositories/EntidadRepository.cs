@@ -15,49 +15,44 @@ public class EntidadRepository : IEntidadRepository
 
     public async Task<Entidad?> GetByIdAsync(int id)
     {
-        return await _context.Set<Entidad>().FindAsync(id);
+        return await _context.Entidades
+            .Include(e => e.ActXEntidades)
+            .FirstOrDefaultAsync(e => e.EntidadId == id);
     }
 
-    public async Task<List<Entidad>> GetAllAsync()
+    public async Task<IEnumerable<Entidad>> GetAllAsync()
     {
-        return await _context.Set<Entidad>().OrderBy(e => e.Nombre).ToListAsync();
-    }
-
-    public async Task<List<Entidad>> GetByFilterAsync(string? searchTerm = null)
-    {
-        var q = _context.Set<Entidad>().AsQueryable();
-        if (!string.IsNullOrWhiteSpace(searchTerm))
-        {
-            q = q.Where(e => e.Nombre.Contains(searchTerm));
-        }
-        return await q.OrderBy(e => e.Nombre).ToListAsync();
+        return await _context.Entidades
+            .Include(e => e.ActXEntidades)
+            .ToListAsync();
     }
 
     public async Task<Entidad> CreateAsync(Entidad entidad)
     {
-        _context.Set<Entidad>().Add(entidad);
+        await _context.Entidades.AddAsync(entidad);
         await _context.SaveChangesAsync();
         return entidad;
     }
 
     public async Task<Entidad> UpdateAsync(Entidad entidad)
     {
-        _context.Set<Entidad>().Update(entidad);
+        _context.Entidades.Update(entidad);
         await _context.SaveChangesAsync();
         return entidad;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task DeleteAsync(int id)
     {
-        var e = await _context.Set<Entidad>().FindAsync(id);
-        if (e == null) return false;
-        _context.Set<Entidad>().Remove(e);
-        await _context.SaveChangesAsync();
-        return true;
+        var entidad = await _context.Entidades.FindAsync(id);
+        if (entidad != null)
+        {
+            _context.Entidades.Remove(entidad);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task<bool> ExistsAsync(int id)
     {
-        return await _context.Set<Entidad>().AnyAsync(e => e.EntidadId == id);
+        return await _context.Entidades.AnyAsync(e => e.EntidadId == id);
     }
 }

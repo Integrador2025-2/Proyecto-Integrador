@@ -7,42 +7,60 @@ namespace Backend.Infrastructure.Repositories;
 public class GastosViajeRepository : IGastosViajeRepository
 {
     private readonly ApplicationDbContext _context;
-    public GastosViajeRepository(ApplicationDbContext context) => _context = context;
 
-    public async Task<List<GastosViaje>> GetAllAsync() => await _context.Set<GastosViaje>().AsNoTracking().ToListAsync();
-
-    public async Task<GastosViaje?> GetByIdAsync(int id) => await _context.Set<GastosViaje>().FirstOrDefaultAsync(g => g.GastosViajeId == id);
-
-    public async Task<List<GastosViaje>> GetByRubroIdAsync(int rubroId) => await _context.Set<GastosViaje>().Where(g => g.RubroId == rubroId).AsNoTracking().ToListAsync();
-
-    public async Task<GastosViaje> CreateAsync(GastosViaje entity)
+    public GastosViajeRepository(ApplicationDbContext context)
     {
-        _context.Set<GastosViaje>().Add(entity);
-        await _context.SaveChangesAsync();
-        return entity;
+        _context = context;
     }
 
-    public async Task<GastosViaje?> UpdateAsync(GastosViaje entity)
+    public async Task<GastosViaje?> GetByIdAsync(int id)
     {
-        var existing = await _context.Set<GastosViaje>().FirstOrDefaultAsync(g => g.GastosViajeId == entity.GastosViajeId);
-        if (existing == null) return null;
+        return await _context.GastosViaje
+            .Include(g => g.RecursoEspecifico)
+            .FirstOrDefaultAsync(g => g.GastosViajeId == id);
+    }
 
-        existing.Costo = entity.Costo;
-        existing.RagEstado = entity.RagEstado;
-        existing.PeriodoNum = entity.PeriodoNum;
-        existing.PeriodoTipo = entity.PeriodoTipo;
-        existing.RubroId = entity.RubroId;
+    public async Task<IEnumerable<GastosViaje>> GetAllAsync()
+    {
+        return await _context.GastosViaje
+            .Include(g => g.RecursoEspecifico)
+            .ToListAsync();
+    }
 
+    public async Task<GastosViaje?> GetByRecursoEspecificoIdAsync(int recursoEspecificoId)
+    {
+        return await _context.GastosViaje
+            .Include(g => g.RecursoEspecifico)
+            .FirstOrDefaultAsync(g => g.RecursoEspecificoId == recursoEspecificoId);
+    }
+
+    public async Task<GastosViaje> CreateAsync(GastosViaje gastosViaje)
+    {
+        _context.GastosViaje.Add(gastosViaje);
         await _context.SaveChangesAsync();
-        return existing;
+        return gastosViaje;
+    }
+
+    public async Task<GastosViaje> UpdateAsync(GastosViaje gastosViaje)
+    {
+        _context.GastosViaje.Update(gastosViaje);
+        await _context.SaveChangesAsync();
+        return gastosViaje;
     }
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var existing = await _context.Set<GastosViaje>().FirstOrDefaultAsync(g => g.GastosViajeId == id);
-        if (existing == null) return false;
-        _context.Set<GastosViaje>().Remove(existing);
+        var gastosViaje = await _context.GastosViaje.FindAsync(id);
+        if (gastosViaje == null)
+            return false;
+
+        _context.GastosViaje.Remove(gastosViaje);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<bool> ExistsAsync(int id)
+    {
+        return await _context.GastosViaje.AnyAsync(g => g.GastosViajeId == id);
     }
 }

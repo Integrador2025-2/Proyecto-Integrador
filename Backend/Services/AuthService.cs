@@ -577,4 +577,62 @@ public class AuthService : IAuthService
         var visible = Math.Min(2, name.Length);
         return name.Substring(0, visible) + new string('*', Math.Max(0, name.Length - visible)) + domain;
     }
+
+    /// <summary>
+    /// [SOLO DESARROLLO] Login directo sin 2FA para pruebas
+    /// </summary>
+    public async Task<AuthResponseDto> DevLoginAsync(LoginRequestDto loginRequest)
+    {
+        var user = await _userRepository.GetByEmailAsync(loginRequest.Email);
+        
+        if (user == null || !user.IsActive)
+        {
+            throw new UnauthorizedAccessException("Credenciales inválidas");
+        }
+
+        if (user.Provider != "local")
+        {
+            throw new UnauthorizedAccessException("Este usuario se registró con Google. Use el login con Google.");
+        }
+
+        if (!BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.PasswordHash))
+        {
+            throw new UnauthorizedAccessException("Credenciales inválidas");
+        }
+
+        // Generar JWT directamente sin 2FA
+        var token = GenerateJwtToken(user);
+        var refreshToken = GenerateRefreshToken();
+
+        var refreshTokenInfo = new RefreshTokenInfo
+        {
+            UserId = user.Id,
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _redisDb.StringSetAsync(
+            $"refresh_token:{refreshToken}", 
+            JsonSerializer.Serialize(refreshTokenInfo), 
+            TimeSpan.FromDays(7)
+        );
+
+        _logger.LogInformation("Dev login exitoso para usuario {UserId}", user.Id);
+
+        return new AuthResponseDto
+        {
+            Token = token,
+            RefreshToken = refreshToken,
+            User = new UserDto
+            {
+                Id = user.Id,
+                FullName = user.FullName,
+                Email = user.Email,
+                IsActive = user.IsActive,
+                RoleId = user.RoleId,
+                RoleName = user.Role?.Name ?? "",
+                Provider = user.Provider ?? "local"
+            }
+        };
+    }
 }

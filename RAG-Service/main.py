@@ -5,10 +5,15 @@ from typing import List, Optional, Dict, Any
 import os
 from dotenv import load_dotenv
 import uvicorn
+import logging
 
 from services.document_processor import DocumentProcessor
 from services.rag_service import RAGService
 from services.budget_automation import BudgetAutomationService
+from services.cotizacion_service import CotizacionService
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 from models.schemas import (
     DocumentUpload,
     QueryRequest,
@@ -19,6 +24,7 @@ from models.schemas import (
     ResourcePlanRequest,
     ResourcePlanResponse,
     ResourceAssignment,
+    ExtractedActivities,
 )
 
 # Cargar variables de entorno
@@ -43,6 +49,7 @@ app.add_middleware(
 document_processor = DocumentProcessor()
 rag_service = RAGService()
 budget_automation = BudgetAutomationService()
+cotizacion_service = CotizacionService()
 
 # Modelos de datos
 class HealthResponse(BaseModel):
@@ -163,6 +170,97 @@ async def extract_budget_from_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error extrayendo presupuesto: {str(e)}")
 
+@app.post("/cotizacion/generar")
+async def generar_cotizacion(
+    file: UploadFile = File(...),
+    incluir_iva: bool = False,
+    tasa_iva: float = 0.19
+):
+    """
+    Generar cotización en formato colombiano desde archivo Excel.
+    
+    Args:
+        file: Archivo Excel con ítems a cotizar
+        incluir_iva: Si True, incluye IVA (19%) en la cotización
+        tasa_iva: Tasa de IVA (por defecto 0.19 = 19%)
+    
+    Returns:
+        Cotización en formato markdown y datos estructurados
+    """
+    try:
+        import tempfile
+        
+        # Validar tipo de archivo
+        allowed_extensions = ['.xlsx', '.xls']
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        
+        if file_extension not in allowed_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tipo de archivo no soportado para cotización. Permitidos: {allowed_extensions}"
+            )
+        
+        # Guardar archivo temporal
+        content = await file.read()
+        temp_file_path = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
+                temp_file.write(content)
+                temp_file_path = temp_file.name
+            
+            # Generar cotización
+            resultado = await cotizacion_service.generar_cotizacion_desde_excel(
+                file_path=temp_file_path,
+                incluir_iva=incluir_iva,
+                tasa_iva=tasa_iva
+            )
+            
+            return {
+                "message": "Cotización generada exitosamente",
+                "filename": file.filename,
+                "cotizacion_markdown": resultado["cotizacion_markdown"],
+                "items": resultado["items"],
+                "totales": resultado["totales"],
+                "incluye_iva": resultado["incluye_iva"],
+                "tasa_iva": resultado["tasa_iva"],
+                "total_items": resultado["total_items"],
+                "items_estimados": resultado.get("items_estimados", 0),
+                "fecha_generacion": resultado["fecha_generacion"]
+            }
+        
+        finally:
+            # Limpiar archivo temporal (asegurarse de que esté cerrado)
+            if temp_file_path and os.path.exists(temp_file_path):
+                import time
+                import gc
+                
+                # Forzar recolección de basura para liberar referencias al archivo
+                gc.collect()
+                
+                # Intentar eliminar el archivo con varios reintentos
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        time.sleep(0.2 * (attempt + 1))  # Esperar progresivamente más tiempo
+                        os.unlink(temp_file_path)
+                        break  # Éxito, salir del loop
+                    except PermissionError:
+                        if attempt < max_retries - 1:
+                            logger.debug(f"Intento {attempt + 1} falló al eliminar archivo temporal, reintentando...")
+                            continue
+                        else:
+                            logger.warning(f"No se pudo eliminar archivo temporal {temp_file_path} después de {max_retries} intentos. El archivo puede quedar en el sistema temporal.")
+                    except Exception as e:
+                        logger.warning(f"Error eliminando archivo temporal {temp_file_path}: {str(e)}")
+                        break
+    
+    except ValueError as e:
+        # Errores de validación (columnas faltantes, ítems inválidos)
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error generando cotización: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error generando cotización: {str(e)}")
+
 @app.post("/query", response_model=QueryResponse)
 async def query_documents(request: QueryRequest):
     """Realizar consulta semántica sobre los documentos"""
@@ -170,7 +268,7 @@ async def query_documents(request: QueryRequest):
         response = await rag_service.query(
             question=request.question,
             project_id=request.project_id,
-            top_k=request.top_k or 5
+            top_k=request.top_k or 10  # Aumentado de 5 a 10 para más contexto
         )
         
         return QueryResponse(
@@ -291,6 +389,18 @@ async def get_budget_suggestions(project_id: int, category: str = None):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error obteniendo sugerencias: {str(e)}")
+
+@app.get("/projects/{project_id}/activities/extract", response_model=ExtractedActivities)
+async def extract_activities_from_documents(project_id: int):
+    """
+    Extraer todas las actividades mencionadas en los documentos del proyecto.
+    No se preocupa por jerarquías, solo extrae la lista de actividades encontradas.
+    """
+    try:
+        result = await budget_automation.extract_activities_from_documents(project_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error extrayendo actividades: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(

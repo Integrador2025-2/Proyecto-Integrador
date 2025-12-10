@@ -7,44 +7,65 @@ namespace Backend.Infrastructure.Repositories;
 public class CapacitacionEventosRepository : ICapacitacionEventosRepository
 {
     private readonly ApplicationDbContext _context;
-    public CapacitacionEventosRepository(ApplicationDbContext context) => _context = context;
 
-    public async Task<List<CapacitacionEventos>> GetAllAsync() => await _context.Set<CapacitacionEventos>().AsNoTracking().ToListAsync();
-
-    public async Task<CapacitacionEventos?> GetByIdAsync(int id) => await _context.Set<CapacitacionEventos>().FirstOrDefaultAsync(c => c.CapacitacionEventosId == id);
-
-    public async Task<List<CapacitacionEventos>> GetByRubroIdAsync(int rubroId) => await _context.Set<CapacitacionEventos>().Where(c => c.RubroId == rubroId).AsNoTracking().ToListAsync();
-
-    public async Task<CapacitacionEventos> CreateAsync(CapacitacionEventos entity)
+    public CapacitacionEventosRepository(ApplicationDbContext context)
     {
-        _context.Set<CapacitacionEventos>().Add(entity);
-        await _context.SaveChangesAsync();
-        return entity;
+        _context = context;
     }
 
-    public async Task<CapacitacionEventos?> UpdateAsync(CapacitacionEventos entity)
+    public async Task<CapacitacionEventos?> GetByIdAsync(int capacitacionEventosId)
     {
-        var existing = await _context.Set<CapacitacionEventos>().FirstOrDefaultAsync(c => c.CapacitacionEventosId == entity.CapacitacionEventosId);
-        if (existing == null) return null;
-
-        existing.Tema = entity.Tema;
-        existing.Cantidad = entity.Cantidad;
-        existing.Total = entity.Total;
-        existing.RagEstado = entity.RagEstado;
-        existing.PeriodoNum = entity.PeriodoNum;
-        existing.PeriodoTipo = entity.PeriodoTipo;
-        existing.RubroId = entity.RubroId;
-
-        await _context.SaveChangesAsync();
-        return existing;
+        return await _context.CapacitacionEventos
+            .Include(ce => ce.RecursoEspecifico)
+            .FirstOrDefaultAsync(ce => ce.CapacitacionEventosId == capacitacionEventosId);
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<IEnumerable<CapacitacionEventos>> GetAllAsync()
     {
-        var existing = await _context.Set<CapacitacionEventos>().FirstOrDefaultAsync(c => c.CapacitacionEventosId == id);
-        if (existing == null) return false;
-        _context.Set<CapacitacionEventos>().Remove(existing);
+        return await _context.CapacitacionEventos
+            .Include(ce => ce.RecursoEspecifico)
+            .ToListAsync();
+    }
+
+    public async Task<CapacitacionEventos?> GetByRecursoEspecificoIdAsync(int recursoEspecificoId)
+    {
+        return await _context.CapacitacionEventos
+            .Include(ce => ce.RecursoEspecifico)
+            .FirstOrDefaultAsync(ce => ce.RecursoEspecificoId == recursoEspecificoId);
+    }
+
+    public async Task<CapacitacionEventos> CreateAsync(CapacitacionEventos capacitacionEventos)
+    {
+        await _context.CapacitacionEventos.AddAsync(capacitacionEventos);
+        await _context.SaveChangesAsync();
+        return capacitacionEventos;
+    }
+
+    public async Task<CapacitacionEventos> UpdateAsync(CapacitacionEventos capacitacionEventos)
+    {
+        _context.CapacitacionEventos.Update(capacitacionEventos);
+        await _context.SaveChangesAsync();
+        return capacitacionEventos;
+    }
+
+    public async Task<bool> DeleteAsync(int capacitacionEventosId)
+    {
+        var capacitacionEventos = await _context.CapacitacionEventos
+            .FirstOrDefaultAsync(ce => ce.CapacitacionEventosId == capacitacionEventosId);
+        
+        if (capacitacionEventos == null)
+        {
+            return false;
+        }
+
+        _context.CapacitacionEventos.Remove(capacitacionEventos);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<bool> ExistsAsync(int capacitacionEventosId)
+    {
+        return await _context.CapacitacionEventos
+            .AnyAsync(ce => ce.CapacitacionEventosId == capacitacionEventosId);
     }
 }
