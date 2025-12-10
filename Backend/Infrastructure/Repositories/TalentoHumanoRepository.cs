@@ -7,35 +7,63 @@ namespace Backend.Infrastructure.Repositories;
 public class TalentoHumanoRepository : ITalentoHumanoRepository
 {
     private readonly ApplicationDbContext _context;
-    public TalentoHumanoRepository(ApplicationDbContext context) => _context = context;
 
-    public async Task<List<TalentoHumano>> GetAllAsync() => await _context.Set<TalentoHumano>().AsNoTracking().ToListAsync();
-    public async Task<TalentoHumano?> GetByIdAsync(int id) => await _context.Set<TalentoHumano>().FirstOrDefaultAsync(t => t.TalentoHumanoId == id);
-    public async Task<List<TalentoHumano>> GetByRubroIdAsync(int rubroId) => await _context.Set<TalentoHumano>().Where(t => t.RubroId == rubroId).AsNoTracking().ToListAsync();
-    public async Task<TalentoHumano> CreateAsync(TalentoHumano entity) { _context.Set<TalentoHumano>().Add(entity); await _context.SaveChangesAsync(); return entity; }
-    public async Task<TalentoHumano?> UpdateAsync(TalentoHumano entity)
+    public TalentoHumanoRepository(ApplicationDbContext context)
     {
-        var existing = await _context.Set<TalentoHumano>().FirstOrDefaultAsync(t => t.TalentoHumanoId == entity.TalentoHumanoId);
-        if (existing == null) return null;
-
-        existing.CargoEspecifico = entity.CargoEspecifico;
-        existing.Semanas = entity.Semanas;
-        existing.Total = entity.Total;
-        existing.RagEstado = entity.RagEstado;
-        existing.PeriodoNum = entity.PeriodoNum;
-        existing.PeriodoTipo = entity.PeriodoTipo;
-        existing.RubroId = entity.RubroId;
-
-        await _context.SaveChangesAsync();
-        return existing;
+        _context = context;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<TalentoHumano?> GetByIdAsync(int talentoHumanoId)
     {
-        var existing = await _context.Set<TalentoHumano>().FirstOrDefaultAsync(t => t.TalentoHumanoId == id);
-        if (existing == null) return false;
-        _context.Set<TalentoHumano>().Remove(existing);
+        return await _context.TalentoHumano
+            .Include(th => th.RecursoEspecifico)
+            .Include(th => th.Contratacion)
+            .FirstOrDefaultAsync(th => th.TalentoHumanoId == talentoHumanoId);
+    }
+
+    public async Task<IEnumerable<TalentoHumano>> GetAllAsync()
+    {
+        return await _context.TalentoHumano
+            .Include(th => th.RecursoEspecifico)
+            .Include(th => th.Contratacion)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<TalentoHumano>> GetByRecursoEspecificoIdAsync(int recursoEspecificoId)
+    {
+        return await _context.TalentoHumano
+            .Include(th => th.RecursoEspecifico)
+            .Include(th => th.Contratacion)
+            .Where(th => th.RecursoEspecificoId == recursoEspecificoId)
+            .ToListAsync();
+    }
+
+    public async Task<TalentoHumano> CreateAsync(TalentoHumano talentoHumano)
+    {
+        await _context.TalentoHumano.AddAsync(talentoHumano);
         await _context.SaveChangesAsync();
-        return true;
+        return talentoHumano;
+    }
+
+    public async Task<TalentoHumano> UpdateAsync(TalentoHumano talentoHumano)
+    {
+        _context.TalentoHumano.Update(talentoHumano);
+        await _context.SaveChangesAsync();
+        return talentoHumano;
+    }
+
+    public async Task DeleteAsync(int talentoHumanoId)
+    {
+        var talentoHumano = await _context.TalentoHumano.FindAsync(talentoHumanoId);
+        if (talentoHumano != null)
+        {
+            _context.TalentoHumano.Remove(talentoHumano);
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<bool> ExistsAsync(int talentoHumanoId)
+    {
+        return await _context.TalentoHumano.AnyAsync(th => th.TalentoHumanoId == talentoHumanoId);
     }
 }

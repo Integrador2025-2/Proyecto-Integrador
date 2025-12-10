@@ -7,40 +7,65 @@ namespace Backend.Infrastructure.Repositories;
 public class MaterialesInsumosRepository : IMaterialesInsumosRepository
 {
     private readonly ApplicationDbContext _context;
-    public MaterialesInsumosRepository(ApplicationDbContext context) => _context = context;
 
-    public async Task<List<MaterialesInsumos>> GetAllAsync() => await _context.Set<MaterialesInsumos>().AsNoTracking().ToListAsync();
-    public async Task<MaterialesInsumos?> GetByIdAsync(int id) => await _context.Set<MaterialesInsumos>().FirstOrDefaultAsync(m => m.MaterialesInsumosId == id);
-    public async Task<List<MaterialesInsumos>> GetByRubroIdAsync(int rubroId) => await _context.Set<MaterialesInsumos>().Where(m => m.RubroId == rubroId).AsNoTracking().ToListAsync();
-    public async Task<MaterialesInsumos> CreateAsync(MaterialesInsumos entity)
+    public MaterialesInsumosRepository(ApplicationDbContext context)
     {
-        _context.Set<MaterialesInsumos>().Add(entity);
-        await _context.SaveChangesAsync();
-        return entity;
+        _context = context;
     }
 
-    public async Task<MaterialesInsumos?> UpdateAsync(MaterialesInsumos entity)
+    public async Task<MaterialesInsumos?> GetByIdAsync(int materialesInsumosId)
     {
-        var existing = await _context.Set<MaterialesInsumos>().FirstOrDefaultAsync(m => m.MaterialesInsumosId == entity.MaterialesInsumosId);
-        if (existing == null) return null;
-
-        existing.Materiales = entity.Materiales;
-        existing.Total = entity.Total;
-        existing.RagEstado = entity.RagEstado;
-        existing.PeriodoNum = entity.PeriodoNum;
-        existing.PeriodoTipo = entity.PeriodoTipo;
-        existing.RubroId = entity.RubroId;
-
-        await _context.SaveChangesAsync();
-        return existing;
+        return await _context.MaterialesInsumos
+            .Include(mi => mi.RecursoEspecifico)
+            .FirstOrDefaultAsync(mi => mi.MaterialesInsumosId == materialesInsumosId);
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<IEnumerable<MaterialesInsumos>> GetAllAsync()
     {
-        var existing = await _context.Set<MaterialesInsumos>().FirstOrDefaultAsync(m => m.MaterialesInsumosId == id);
-        if (existing == null) return false;
-        _context.Set<MaterialesInsumos>().Remove(existing);
+        return await _context.MaterialesInsumos
+            .Include(mi => mi.RecursoEspecifico)
+            .ToListAsync();
+    }
+
+    public async Task<MaterialesInsumos?> GetByRecursoEspecificoIdAsync(int recursoEspecificoId)
+    {
+        return await _context.MaterialesInsumos
+            .Include(mi => mi.RecursoEspecifico)
+            .FirstOrDefaultAsync(mi => mi.RecursoEspecificoId == recursoEspecificoId);
+    }
+
+    public async Task<MaterialesInsumos> CreateAsync(MaterialesInsumos materialesInsumos)
+    {
+        await _context.MaterialesInsumos.AddAsync(materialesInsumos);
+        await _context.SaveChangesAsync();
+        return materialesInsumos;
+    }
+
+    public async Task<MaterialesInsumos> UpdateAsync(MaterialesInsumos materialesInsumos)
+    {
+        _context.MaterialesInsumos.Update(materialesInsumos);
+        await _context.SaveChangesAsync();
+        return materialesInsumos;
+    }
+
+    public async Task<bool> DeleteAsync(int materialesInsumosId)
+    {
+        var materialesInsumos = await _context.MaterialesInsumos
+            .FirstOrDefaultAsync(mi => mi.MaterialesInsumosId == materialesInsumosId);
+        
+        if (materialesInsumos == null)
+        {
+            return false;
+        }
+
+        _context.MaterialesInsumos.Remove(materialesInsumos);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<bool> ExistsAsync(int materialesInsumosId)
+    {
+        return await _context.MaterialesInsumos
+            .AnyAsync(mi => mi.MaterialesInsumosId == materialesInsumosId);
     }
 }

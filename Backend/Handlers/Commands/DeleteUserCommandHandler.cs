@@ -21,7 +21,8 @@ public class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand, bool>
             throw new ArgumentException($"Usuario con ID {request.Id} no encontrado.");
         }
 
-        return await _userRepository.DeleteAsync(request.Id);
+        await _userRepository.DeleteAsync(request.Id);
+        return true;
     }
 }
 
