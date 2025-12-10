@@ -12,6 +12,19 @@ public class ApplicationDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Role> Roles { get; set; }
     public DbSet<WeatherForecast> WeatherForecasts { get; set; }
+    public DbSet<Proyecto> Proyectos { get; set; }
+    public DbSet<Actividad> Actividades { get; set; }
+    public DbSet<Rubro> Rubros { get; set; }
+    public DbSet<TalentoHumano> TalentoHumano { get; set; }
+    public DbSet<ServiciosTecnologicos> ServiciosTecnologicos { get; set; }
+    public DbSet<EquiposSoftware> EquiposSoftware { get; set; }
+    public DbSet<MaterialesInsumos> MaterialesInsumos { get; set; }
+    public DbSet<CapacitacionEventos> CapacitacionEventos { get; set; }
+    public DbSet<GastosViaje> GastosViaje { get; set; }
+    public DbSet<ActXEntidad> ActXEntidades { get; set; }
+    public DbSet<Entidad> Entidades { get; set; }
+    public DbSet<CadenaDeValor> CadenasDeValor { get; set; }
+    public DbSet<Tarea> Tareas { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,6 +48,18 @@ public class ApplicationDbContext : DbContext
                 .HasDefaultValue(true);
             entity.HasIndex(e => e.Name)
                 .IsUnique();
+        });
+
+        // Ensure entities map to the expected table names (existing DB uses pluralized names)
+        modelBuilder.Entity<Entidad>(entity =>
+        {
+            entity.ToTable("Entidades");
+            entity.HasKey(e => e.EntidadId);
+            // The existing DB column is named Id_Entidad
+            entity.Property(e => e.EntidadId)
+                .HasColumnName("Id_Entidad")
+                .ValueGeneratedOnAdd();
+            entity.Property(e => e.Nombre).IsRequired().HasMaxLength(255);
         });
 
         // Configuración de User
@@ -90,6 +115,76 @@ public class ApplicationDbContext : DbContext
                 .HasMaxLength(100);
             entity.Property(e => e.CreatedAt)
                 .IsRequired();
+        });
+
+        // Configuracion de ActXEntidad (tabla intermedia entre Actividad y Entidad)
+        modelBuilder.Entity<ActXEntidad>(entity =>
+        {
+            entity.ToTable("ActxEntidades");
+            entity.HasKey(e => e.ActXEntidadId);
+
+            // Map CLR properties to existing DB column names
+            entity.Property(e => e.ActXEntidadId)
+                .HasColumnName("Id")
+                .ValueGeneratedOnAdd();
+
+            entity.Property(e => e.ActividadId)
+                .HasColumnName("act_id");
+
+            entity.Property(e => e.EntidadId)
+                .HasColumnName("entidad_id");
+
+            entity.Property(e => e.Efectivo).HasPrecision(18, 2);
+            entity.Property(e => e.Especie).HasPrecision(18, 2);
+            
+            // The database has a column 'rubro_id' but we don't model a relationship here.
+
+            entity.HasOne(e => e.Actividad)
+                .WithMany(a => a.ActXEntidades)
+                .HasForeignKey(e => e.ActividadId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Entidad)
+                .WithMany(en => en.ActXEntidades)
+                .HasForeignKey(e => e.EntidadId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configuración de CadenaDeValor
+        modelBuilder.Entity<CadenaDeValor>(entity =>
+        {
+            entity.ToTable("CadenasDeValor");
+            entity.HasKey(e => e.CadenaDeValorId);
+            entity.Property(e => e.CadenaDeValorId).HasColumnName("CadenaDeValorId").ValueGeneratedOnAdd();
+            entity.Property(e => e.Nombre).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ObjetivoEspecifico).HasMaxLength(1000);
+            entity.Property(e => e.Producto).HasMaxLength(255);
+        });
+
+        // Configuración de Tarea
+        modelBuilder.Entity<Tarea>(entity =>
+        {
+            entity.ToTable("Tareas");
+            entity.HasKey(e => e.TareaId);
+            entity.Property(e => e.TareaId).HasColumnName("TareaId").ValueGeneratedOnAdd();
+            entity.Property(e => e.Nombre).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Descripcion).HasMaxLength(1000);
+            entity.Property(e => e.Periodo).HasMaxLength(100);
+            entity.Property(e => e.Monto).HasPrecision(18,2);
+
+            entity.HasOne(e => e.Actividad)
+                .WithMany() // Actividad puede tener muchas tareas; no modificar Actividad class
+                .HasForeignKey(e => e.ActividadId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Relación Actividad -> CadenaDeValor (actividad incluye una CadenaDeValorId)
+        modelBuilder.Entity<Actividad>(entity =>
+        {
+            entity.HasOne<CadenaDeValor>()
+                .WithMany(c => c.Actividades)
+                .HasForeignKey("CadenaDeValorId")
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Datos de prueba

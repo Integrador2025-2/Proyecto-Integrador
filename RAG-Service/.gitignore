@@ -1,0 +1,352 @@
+# ...existing code...
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+venv/*         # añadido para cubrir casos donde la carpeta tiene archivos
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# VS Code
+.vscode/
+
+# JetBrains IDEs
+.idea/
+
+# Environment variables
+.env
+.env.*.local
+
+# Logs and runtime files
+*.log
+logs/
+tmp/
+temp/
+
+# Database files
+*.sqlite3
+*.db
+*.db-journal
+
+# Uploaded files / user data
+uploads/
+media/
+data/
+
+# Caches and caches of ML libraries
+.cache/
+.python-eggs/
+pip-wheel-metadata/
+
+# Model / embeddings / vector DB artifacts (local)
+models/
+embeddings/
+vector_db/
+chroma.db
+persist/
+faiss.index
+*.npz
+*.npy
+
+# Jupyter
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Compiled files
+*.pyc
+*.pyo
+*.pyd
+
+# Coverage reports
+coverage_html_report/
+.coverage.*
+
+# Misc
+*.swp
+*.swo
+*.bak
+# ...existing code...
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# VS Code
+.vscode/
+
+# JetBrains IDEs
+.idea/
+
+# Environment variables
+.env
+.env.*.local
+
+# Logs and runtime files
+*.log
+logs/
+tmp/
+temp/
+
+# Database files
+*.sqlite3
+*.db
+*.db-journal
+
+# Uploaded files / user data
+uploads/
+media/
+data/
+
+# Caches and caches of ML libraries
+.cache/
+.python-eggs/
+pip-wheel-metadata/
+
+# Model / embeddings / vector DB artifacts (local)
+models/
+embeddings/
+vector_db/
+chroma.db
+persist/
+faiss.index
+*.npz
+*.npy
+
+# Jupyter
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Compiled files
+*.pyc
+*.pyo
+*.pyd
+
+# Coverage reports
+coverage_html_report/
+.coverage.*
+
+# Misc
+*.swp
+*.swo
+*.bak
+```// filepath: c:\Users\fabia\Documents\Proyecto-Integrador\RAG-Service\.gitignore
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# VS Code
+.vscode/
+
+# JetBrains IDEs
+.idea/
+
+# Environment variables
+.env
+.env.*.local
+
+# Logs and runtime files
+*.log
+logs/
+tmp/
+temp/
+
+# Database files
+*.sqlite3
+*.db
+*.db-journal
+
+# Uploaded files / user data
+uploads/
+media/
+data/
+
+# Caches and caches of ML libraries
+.cache/
+.python-eggs/
+pip-wheel-metadata/
+
+# Model / embeddings / vector DB artifacts (local)
+models/
+embeddings/
+vector_db/
+chroma.db
+persist/
+faiss.index
+*.npz
+*.npy
+
+# Jupyter
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Compiled files
+*.pyc
+*.pyo
+*.pyd
+
+# Coverage reports
+coverage_html_report/
+.coverage.*
+
+# Misc
+*.swp
+*.swo
+*.bak

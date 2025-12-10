@@ -126,7 +126,6 @@ dotnet run
 
 ## 📞 Soporte
 
-Si necesitas ayuda con alguna opción, dime cuál prefieres y te ayudo a implementarla paso a paso.
 
 
 
