@@ -1,30 +1,30 @@
 namespace Backend.Models.DTOs;
 
-public class ActxEntidadDto
+public class ActXEntidadDto
 {
-    public int ActXEntidadId { get; set; }
+    public int Id { get; set; }
     public int ActividadId { get; set; }
     public int EntidadId { get; set; }
     public decimal Efectivo { get; set; }
     public decimal Especie { get; set; }
-
-    // Optional nested entity info
-    public EntidadDto? Entidad { get; set; }
+    public decimal TotalContribucion { get; set; }
+    public string? ActividadNombre { get; set; }
+    public string? EntidadNombre { get; set; }
 }
 
-public class CreateActxEntidadDto
+public class CreateActXEntidadDto
 {
     public int ActividadId { get; set; }
     public int EntidadId { get; set; }
     public decimal Efectivo { get; set; }
     public decimal Especie { get; set; }
+    public decimal TotalContribucion { get; set; }
 }
 
-public class UpdateActxEntidadDto
+public class UpdateActXEntidadDto
 {
-    public int ActXEntidadId { get; set; }
-    public int ActividadId { get; set; }
-    public int EntidadId { get; set; }
+    public int Id { get; set; }
     public decimal Efectivo { get; set; }
     public decimal Especie { get; set; }
+    public decimal TotalContribucion { get; set; }
 }

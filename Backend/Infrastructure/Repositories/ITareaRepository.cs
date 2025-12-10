@@ -1,11 +1,14 @@
 using Backend.Models.Domain;
+
 namespace Backend.Infrastructure.Repositories;
 
 public interface ITareaRepository
 {
-    Task<List<Tarea>> GetAllAsync(int? actividadId = null);
     Task<Tarea?> GetByIdAsync(int id);
-    Task<Tarea> CreateAsync(Tarea entity);
-    Task<Tarea> UpdateAsync(Tarea entity);
-    Task<bool> DeleteAsync(int id);
+    Task<IEnumerable<Tarea>> GetAllAsync();
+    Task<IEnumerable<Tarea>> GetByActividadIdAsync(int actividadId);
+    Task<Tarea> CreateAsync(Tarea tarea);
+    Task<Tarea> UpdateAsync(Tarea tarea);
+    Task DeleteAsync(int id);
+    Task<bool> ExistsAsync(int id);
 }

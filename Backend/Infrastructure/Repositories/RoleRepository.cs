@@ -15,41 +15,22 @@ public class RoleRepository : IRoleRepository
 
     public async Task<Role?> GetByIdAsync(int id)
     {
-        return await _context.Roles
-            .FirstOrDefaultAsync(r => r.Id == id);
+        return await _context.Roles.FindAsync(id);
     }
 
-    public async Task<List<Role>> GetAllAsync()
+    public async Task<Role?> GetByNameAsync(string name)
     {
         return await _context.Roles
-            .OrderBy(r => r.Name)
-            .ToListAsync();
+            .FirstOrDefaultAsync(r => r.Name == name);
     }
 
-    public async Task<List<Role>> GetByFilterAsync(bool? isActive, string? searchTerm)
+    public async Task<IEnumerable<Role>> GetAllAsync()
     {
-        var query = _context.Roles.AsQueryable();
-
-        if (isActive.HasValue)
-        {
-            query = query.Where(r => r.IsActive == isActive.Value);
-        }
-
-        if (!string.IsNullOrEmpty(searchTerm))
-        {
-            query = query.Where(r => 
-                r.Name.Contains(searchTerm) ||
-                r.Description.Contains(searchTerm));
-        }
-
-        return await query
-            .OrderBy(r => r.Name)
-            .ToListAsync();
+        return await _context.Roles.ToListAsync();
     }
 
     public async Task<Role> CreateAsync(Role role)
     {
-        role.CreatedAt = DateTime.UtcNow;
         _context.Roles.Add(role);
         await _context.SaveChangesAsync();
         return role;
@@ -57,38 +38,18 @@ public class RoleRepository : IRoleRepository
 
     public async Task<Role> UpdateAsync(Role role)
     {
-        role.UpdatedAt = DateTime.UtcNow;
         _context.Roles.Update(role);
         await _context.SaveChangesAsync();
         return role;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task DeleteAsync(int id)
     {
-        var role = await _context.Roles.FindAsync(id);
+        var role = await GetByIdAsync(id);
         if (role != null)
         {
             _context.Roles.Remove(role);
             await _context.SaveChangesAsync();
-            return true;
         }
-        return false;
-    }
-
-    public async Task<bool> ExistsAsync(int id)
-    {
-        return await _context.Roles.AnyAsync(r => r.Id == id);
-    }
-
-    public async Task<bool> NameExistsAsync(string name, int? excludeId = null)
-    {
-        var query = _context.Roles.Where(r => r.Name == name);
-        
-        if (excludeId.HasValue)
-        {
-            query = query.Where(r => r.Id != excludeId.Value);
-        }
-
-        return await query.AnyAsync();
     }
 }

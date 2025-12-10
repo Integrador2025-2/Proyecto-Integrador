@@ -1,12 +1,14 @@
 using Backend.Models.Domain;
+
 namespace Backend.Infrastructure.Repositories;
 
 public interface IMaterialesInsumosRepository
 {
-    Task<List<MaterialesInsumos>> GetAllAsync();
-    Task<MaterialesInsumos?> GetByIdAsync(int id);
-    Task<List<MaterialesInsumos>> GetByRubroIdAsync(int rubroId);
-    Task<MaterialesInsumos> CreateAsync(MaterialesInsumos entity);
-    Task<MaterialesInsumos?> UpdateAsync(MaterialesInsumos entity);
-    Task<bool> DeleteAsync(int id);
+    Task<MaterialesInsumos?> GetByIdAsync(int materialesInsumosId);
+    Task<IEnumerable<MaterialesInsumos>> GetAllAsync();
+    Task<MaterialesInsumos?> GetByRecursoEspecificoIdAsync(int recursoEspecificoId);
+    Task<MaterialesInsumos> CreateAsync(MaterialesInsumos materialesInsumos);
+    Task<MaterialesInsumos> UpdateAsync(MaterialesInsumos materialesInsumos);
+    Task<bool> DeleteAsync(int materialesInsumosId);
+    Task<bool> ExistsAsync(int materialesInsumosId);
 }
