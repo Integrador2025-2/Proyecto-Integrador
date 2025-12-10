@@ -329,6 +329,36 @@ public class RAGController : ControllerBase
         }
     }
 
+    [HttpGet("projects/{projectId}/activities/extract")]
+    public async Task<IActionResult> ExtractActivitiesFromDocuments(int projectId)
+    {
+        try
+        {
+            var ragServiceUrl = GetRAGServiceUrl();
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(10);
+
+            var response = await client.GetAsync($"{ragServiceUrl}/projects/{projectId}/activities/extract");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                return Ok(JsonSerializer.Deserialize<RAGExtractedActivitiesDto>(content));
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Error extracting activities: {Error}", errorContent);
+                return StatusCode((int)response.StatusCode, errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error extracting activities from documents");
+            return StatusCode(500, "Error interno del servidor");
+        }
+    }
+
     /* TODO: Este endpoint requiere adaptación completa a la nueva estructura de devDB
      * En devDB, los rubros se manejan mediante RecursoEspecifico con polimorfismo, no con RubroId directo.
      * Los Commands también cambiaron significativamente.

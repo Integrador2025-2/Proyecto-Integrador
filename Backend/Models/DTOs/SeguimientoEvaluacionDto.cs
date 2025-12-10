@@ -8,3 +8,20 @@ public class SeguimientoEvaluacionDto
     public string MetodoEvaluacion { get; set; } = string.Empty;
     public string Frecuencia { get; set; } = string.Empty;
 }
+
+public class CreateSeguimientoEvaluacionDto
+{
+    public int RecursoEspecificoId { get; set; }
+    public string CargoResponsable { get; set; } = string.Empty;
+    public string MetodoEvaluacion { get; set; } = string.Empty;
+    public string Frecuencia { get; set; } = string.Empty;
+}
+
+public class UpdateSeguimientoEvaluacionDto
+{
+    public int SeguimientoId { get; set; }
+    public int RecursoEspecificoId { get; set; }
+    public string CargoResponsable { get; set; } = string.Empty;
+    public string MetodoEvaluacion { get; set; } = string.Empty;
+    public string Frecuencia { get; set; } = string.Empty;
+}
