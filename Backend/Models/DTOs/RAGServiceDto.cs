@@ -270,3 +270,36 @@ public class SaveExtractedBudgetResponseDto
     public Dictionary<string, int> ItemsPerRubro { get; set; } = new();
     public List<string> Errors { get; set; } = new();
 }
+
+public class RAGExtractedActivitiesDto
+{
+    [JsonPropertyName("project_id")]
+    public int ProjectId { get; set; }
+
+    [JsonPropertyName("activities")]
+    public List<RAGExtractedActivityDto> Activities { get; set; } = new();
+
+    [JsonPropertyName("total_activities")]
+    public int TotalActivities { get; set; }
+}
+
+public class RAGExtractedActivityDto
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    [JsonPropertyName("justification")]
+    public string? Justification { get; set; }
+
+    [JsonPropertyName("technical_specifications")]
+    public string? TechnicalSpecifications { get; set; }
+
+    [JsonPropertyName("duration_years")]
+    public int? DurationYears { get; set; }
+
+    [JsonPropertyName("unit_value")]
+    public decimal? UnitValue { get; set; }
+}

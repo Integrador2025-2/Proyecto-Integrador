@@ -6,9 +6,12 @@ from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from datetime import datetime
+import logging
 
 from models.schemas import Activity, Resource, ResourceAssignment
 from .llm_service import LLMService
+
+logger = logging.getLogger(__name__)
     
 class RAGService:
     """Servicio RAG para búsqueda semántica y generación de respuestas"""
@@ -92,8 +95,9 @@ class RAGService:
             if value is None:
                 # Convertir None a string vacío o valor por defecto según el tipo esperado
                 if key == "project_id":
-                    # Si project_id es None, lanzar error ya que es obligatorio
-                    raise ValueError("project_id es obligatorio y no puede ser None")
+                    # Si project_id es None, usar -1 como valor por defecto para indicar "sin proyecto"
+                    # Esto permite que ChromaDB pueda filtrar correctamente
+                    cleaned[key] = -1
                 else:
                     # Para otros campos None, usar string vacío
                     cleaned[key] = ""
@@ -105,8 +109,15 @@ class RAGService:
                 cleaned[key] = str(value)
         return cleaned
     
-    async def query(self, question: str, project_id: Optional[int] = None, top_k: int = 5) -> Dict[str, Any]:
-        """Realizar consulta semántica sobre los documentos"""
+    async def query(self, question: str, project_id: Optional[int] = None, top_k: int = 10) -> Dict[str, Any]:
+        """
+        Realizar consulta semántica sobre los documentos con recuperación mejorada
+        
+        Args:
+            question: Pregunta del usuario
+            project_id: ID del proyecto (opcional)
+            top_k: Número de documentos a recuperar (por defecto 10 para más contexto)
+        """
         try:
             # Generar embedding para la pregunta
             query_embedding = self.embedding_model.encode([question]).tolist()[0]
@@ -116,29 +127,50 @@ class RAGService:
             if project_id is not None:
                 where_filter = {"project_id": project_id}
             
+            # Aumentar top_k para obtener más contexto (mínimo 10, máximo 20)
+            effective_top_k = max(10, min(top_k, 20))
+            
             # Buscar documentos similares
             results = self.collection.query(
                 query_embeddings=[query_embedding],
-                n_results=top_k,
+                n_results=effective_top_k,
                 where=where_filter
             )
             
-            # Procesar resultados
+            # Procesar resultados y filtrar por similitud mínima
             sources = []
             relevant_docs = []
+            min_similarity = 0.3  # Umbral mínimo de similitud
             
             if results['documents'] and results['documents'][0]:
                 for i, doc in enumerate(results['documents'][0]):
+                    similarity = 1 - results['distances'][0][i]  # Convertir distancia a similitud
+                    
+                    # Solo incluir documentos con similitud razonable
+                    if similarity >= min_similarity:
+                        source = {
+                            "content": doc,
+                            "metadata": results['metadatas'][0][i],
+                            "similarity": similarity
+                        }
+                        sources.append(source)
+                        relevant_docs.append(doc)
+            
+            # Si no hay documentos relevantes, intentar con umbral más bajo
+            if not relevant_docs and results['documents'] and results['documents'][0]:
+                # Usar al menos los 3 más similares
+                for i, doc in enumerate(results['documents'][0][:3]):
+                    similarity = 1 - results['distances'][0][i]
                     source = {
                         "content": doc,
                         "metadata": results['metadatas'][0][i],
-                        "similarity": 1 - results['distances'][0][i]  # Convertir distancia a similitud
+                        "similarity": similarity
                     }
                     sources.append(source)
                     relevant_docs.append(doc)
             
-            # Generar respuesta basada en el contexto
-            answer = await self._generate_answer(question, relevant_docs)
+            # Generar respuesta basada en el contexto (ahora con más documentos)
+            answer = await self._generate_answer(question, relevant_docs, project_id)
             
             # Calcular confianza basada en similitud promedio
             confidence = 0.0
@@ -172,7 +204,7 @@ class RAGService:
                             "document_id": doc_id,
                             "filename": metadata.get('filename', 'unknown'),
                             "document_type": metadata.get('document_type', 'unknown'),
-                            "project_id": metadata.get('project_id', project_id),  # Usar el project_id de metadata
+                            "project_id": project_id,
                             "upload_date": metadata.get('added_at', ''),
                             "chunks": []
                         }
@@ -397,16 +429,46 @@ class RAGService:
             "confidence": float(coverage_ratio),
         }
 
-    async def _generate_answer(self, question: str, context_docs: List[str]) -> str:
-        """Generar respuesta basada en el contexto de los documentos"""
+    async def _generate_answer(self, question: str, context_docs: List[str], project_id: Optional[int] = None) -> str:
+        """
+        Generar respuesta basada en el contexto de los documentos con mejoras para respuestas más completas
+        
+        Args:
+            question: Pregunta del usuario
+            context_docs: Lista de documentos relevantes recuperados
+            project_id: ID del proyecto (opcional, para obtener contexto adicional)
+        """
         if not context_docs:
             return "No se encontró información relevante para responder tu pregunta."
         
-        # Combinar contexto
-        context = "\n\n".join(context_docs)
+        # Combinar contexto con mejor organización
+        # Agrupar documentos relacionados y ordenar por relevancia
+        context = "\n\n--- Documento {0} ---\n{1}".format(
+            "1", context_docs[0]
+        ) if len(context_docs) == 1 else "\n\n".join(
+            [f"--- Documento {i+1} ---\n{doc}" for i, doc in enumerate(context_docs)]
+        )
+        
+        # Obtener contexto adicional del proyecto si está disponible
+        additional_context = ""
+        if project_id and self.use_llm:
+            try:
+                project_docs = await self.get_project_documents(project_id)
+                if project_docs:
+                    # Agregar información general del proyecto
+                    project_summary = " ".join([
+                        " ".join([chunk["content"] for chunk in doc["chunks"][:2]])
+                        for doc in project_docs[:2]  # Primeros 2 documentos
+                    ])
+                    if project_summary and len(project_summary) > 100:
+                        additional_context = f"\n\n--- Contexto adicional del proyecto ---\n{project_summary[:1500]}"
+            except Exception as e:
+                logger.warning(f"No se pudo obtener contexto adicional del proyecto: {str(e)}")
+        
+        # Combinar todo el contexto
+        full_context = context + additional_context
 
-        # Detectar si el usuario está pidiendo un resumen del proyecto (para cualquier proyecto)
-        # y construir un prompt de sistema especializado para este tipo de tarea.
+        # Detectar tipo de pregunta y construir prompt especializado
         system_prompt = None
         q_lower = question.lower()
 
@@ -417,28 +479,74 @@ class RAGService:
         ) and ("proyecto" in q_lower or "project" in q_lower):
             system_prompt = """
 Eres un experto en formulación, evaluación y seguimiento de proyectos (especialmente en ciencia, tecnología, innovación y salud).
-Debes elaborar RESÚMENES EJECUTIVOS COMPLETOS usando EXCLUSIVAMENTE la información disponible en el contexto proporcionado.
+Debes elaborar RESÚMENES EJECUTIVOS COMPLETOS Y EXHAUSTIVOS usando EXCLUSIVAMENTE la información disponible en el contexto proporcionado.
 
 INSTRUCCIONES GENERALES:
 - Responde SIEMPRE en español, con tono claro, profesional y bien estructurado.
+- Proporciona respuestas COMPLETAS y DETALLADAS, no te limites a respuestas cortas.
+- Utiliza TODA la información relevante del contexto proporcionado.
 - No inventes datos: si algo no aparece en el contexto, indícalo explícitamente.
 - Evita centrarte en detalles administrativos muy específicos (como códigos internos, números de cotización, IDs, etc.) salvo que sean clave para entender el proyecto.
 
-CUANDO TE PIDAN UN RESUMEN DE PROYECTO, INTENTA CUBRIR, SI APARECE EN EL CONTEXTO:
-- Justificación y contexto del problema (por qué existe el proyecto, qué problema aborda, situación actual).
+CUANDO TE PIDAN UN RESUMEN DE PROYECTO, INTENTA CUBRIR EXHAUSTIVAMENTE, SI APARECE EN EL CONTEXTO:
+- Justificación y contexto del problema (por qué existe el proyecto, qué problema aborda, situación actual, antecedentes relevantes).
 - Objetivo general y, si están definidos, los objetivos específicos (OE1, OE2, etc.) y los principales indicadores de éxito.
 - Alcance y territorio de intervención (regiones, departamentos, municipios, instituciones o entornos donde se ejecuta).
 - Población objetivo y beneficiarios (número de personas, grupos poblacionales, enfoques diferenciales como género, comunidades étnicas, víctimas del conflicto, etc.).
 - Componentes, ejes o líneas de trabajo principales (por ejemplo: telemedicina, modelos predictivos, biomarcadores, plataformas tecnológicas, apropiación social del conocimiento, formación de talento humano, etc.).
-- Actividades clave y metodología general (qué se hará de manera resumida para lograr los objetivos).
+- Actividades clave y metodología general (qué se hará de manera resumida para lograr los objetivos, enfoque metodológico, fases del proyecto).
 - Resultados esperados y productos principales (prototipos, publicaciones, políticas públicas, fortalecimiento institucional, etc.).
 - Gobernanza y actores del proyecto (instituciones participantes, equipos, roles relevantes, alianzas, ecosistema de innovación) si la información está disponible.
 - Consideraciones de presupuesto y recursos solo al nivel necesario para entender la magnitud del proyecto, sin entrar en tablas de costos detalladas.
+- Cronograma general y fases del proyecto si está disponible.
+- Impacto esperado y sostenibilidad del proyecto.
 
 FORMATO DE RESPUESTA:
-- Estructura la respuesta en varios párrafos coherentes (al menos 4–6), organizados lógicamente.
-- Puedes usar subtítulos en negrita (por ejemplo: **Justificación**, **Objetivos**, **Componentes principales**, **Resultados esperados**, etc.).
-- Si un elemento importante no aparece en el contexto, menciona brevemente algo como: "En los documentos proporcionados no se encontró información explícita sobre X".
+- Estructura la respuesta en VARIOS párrafos coherentes y detallados (mínimo 6-8 párrafos, idealmente más).
+- Usa subtítulos en negrita para organizar la información (por ejemplo: **Justificación**, **Objetivos**, **Componentes principales**, **Resultados esperados**, etc.).
+- Sé exhaustivo: incluye todos los detalles relevantes que encuentres en el contexto.
+- Si un elemento importante no aparece en el contexto, menciona brevemente: "En los documentos proporcionados no se encontró información explícita sobre X".
+- Proporciona ejemplos y detalles específicos cuando estén disponibles en el contexto.
+"""
+        elif "presupuesto" in q_lower or "costo" in q_lower or "presupuest" in q_lower:
+            system_prompt = """
+Eres un experto en análisis de presupuestos de proyectos de investigación e innovación.
+Debes proporcionar respuestas COMPLETAS y DETALLADAS sobre presupuestos, costos y recursos financieros.
+
+INSTRUCCIONES:
+- Analiza TODA la información presupuestaria disponible en el contexto.
+- Proporciona desgloses detallados por categorías, rubros y actividades.
+- Incluye cantidades, costos unitarios, totales y justificaciones cuando estén disponibles.
+- Estructura la información de manera clara y organizada.
+- Si hay información sobre distribución temporal (por años, meses), inclúyela.
+- Sé exhaustivo: no omitas detalles relevantes del presupuesto.
+"""
+        elif "actividad" in q_lower or "tarea" in q_lower or "metodología" in q_lower:
+            system_prompt = """
+Eres un experto en análisis de actividades y metodologías de proyectos.
+Debes proporcionar respuestas COMPLETAS sobre las actividades, tareas y metodología del proyecto.
+
+INSTRUCCIONES:
+- Describe TODAS las actividades relevantes mencionadas en el contexto.
+- Incluye detalles sobre metodología, cronograma, responsables y resultados esperados.
+- Estructura la información de manera clara y organizada.
+- Sé exhaustivo: incluye todos los detalles relevantes sobre actividades y metodología.
+"""
+        else:
+            # Prompt general mejorado para respuestas más completas
+            system_prompt = """
+Eres un asistente experto en análisis de proyectos y presupuestos.
+Tu tarea es responder preguntas de manera COMPLETA, DETALLADA y EXHAUSTIVA basándote en la información proporcionada en el contexto.
+
+INSTRUCCIONES:
+- Utiliza TODA la información relevante del contexto proporcionado.
+- Proporciona respuestas COMPLETAS y BIEN ESTRUCTURADAS, no te limites a respuestas cortas.
+- Si la pregunta tiene múltiples aspectos, aborda cada uno de manera exhaustiva.
+- Incluye ejemplos, detalles específicos y explicaciones cuando sea apropiado.
+- Estructura tu respuesta con párrafos claros y, si es necesario, con subtítulos o listas.
+- Si la información no está disponible en el contexto, indica claramente que no tienes esa información.
+- Responde siempre en español y de manera clara y profesional.
+- Sé exhaustivo: no omitas información relevante que pueda ayudar a responder la pregunta completamente.
 """
 
         # Usar LLM si está disponible
@@ -446,16 +554,16 @@ FORMATO DE RESPUESTA:
             try:
                 return await self.llm_service.generate_answer(
                     question,
-                    context,
+                    full_context,
                     system_prompt=system_prompt,
                 )
             except Exception as e:
                 # Si falla el LLM, usar método básico como fallback
                 print(f"Error usando LLM, usando método básico: {str(e)}")
-                return self._generate_basic_answer(question, context)
+                return self._generate_basic_answer(question, full_context)
         else:
             # Método básico sin LLM
-            return self._generate_basic_answer(question, context)
+            return self._generate_basic_answer(question, full_context)
     
     def _generate_basic_answer(self, question: str, context: str) -> str:
         """Generar respuesta básica sin LLM (fallback)"""
