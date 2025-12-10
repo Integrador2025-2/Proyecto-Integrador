@@ -10,7 +10,6 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class RAGController : ControllerBase
 {
     private readonly IHttpClientFactory _httpClientFactory;
@@ -110,7 +109,10 @@ public class RAGController : ControllerBase
     {
         try
         {
-            // Si no se proporcionan actividades pero hay un projectId, intentar obtenerlas de la BD
+            // TODO: En devDB, la estructura cambió: Proyecto → Objetivo → CadenaDeValor → Actividad
+            // GetActividadesByProyectoQuery no existe en devDB. El cliente debe enviar las actividades.
+            
+            /* COMENTADO - Query no existe en devDB
             if (request.Activities == null || request.Activities.Count == 0)
             {
                 try
@@ -118,7 +120,6 @@ public class RAGController : ControllerBase
                     var actividades = await _mediator.Send(new GetActividadesByProyectoQuery(request.ProjectId));
                     if (actividades != null && actividades.Count > 0)
                     {
-                        // Convertir ActividadDto a RAGActivityForBudgetDto
                         request.Activities = actividades.Select(a => new RAGActivityForBudgetDto
                         {
                             ActividadId = a.ActividadId,
@@ -128,7 +129,7 @@ public class RAGController : ControllerBase
                             EspecificacionesTecnicas = a.EspecificacionesTecnicas,
                             CantidadAnios = a.CantidadAnios,
                             ValorUnitario = a.ValorUnitario,
-                            DuracionDias = null // ActividadDto no tiene duracion_dias directamente
+                            DuracionDias = null
                         }).ToList();
                         
                         _logger.LogInformation("Se obtuvieron {Count} actividades del proyecto {ProjectId} para generación de presupuesto", 
@@ -141,6 +142,7 @@ public class RAGController : ControllerBase
                         request.ProjectId);
                 }
             }
+            */
 
             var ragServiceUrl = GetRAGServiceUrl();
             var client = _httpClientFactory.CreateClient();
@@ -271,6 +273,23 @@ public class RAGController : ControllerBase
             return StatusCode(500, "Error interno del servidor");
         }
     }
+
+    /* TODO: Este endpoint requiere adaptación completa a la nueva estructura de devDB
+     * En devDB, los rubros se manejan mediante RecursoEspecifico con polimorfismo, no con RubroId directo.
+     * Los Commands también cambiaron significativamente.
+     * Se necesita reimplementar completamente para trabajar con la nueva arquitectura.
+     
+    [HttpPost("budget/save-extracted")]
+    public async Task<IActionResult> SaveExtractedBudget([FromBody] SaveExtractedBudgetRequestDto request)
+    {
+        return StatusCode(501, new SaveExtractedBudgetResponseDto
+        {
+            Success = false,
+            Message = "Este endpoint requiere adaptación a la nueva estructura de devDB",
+            Errors = new List<string> { "Pendiente de implementación para RecursoEspecifico" }
+        });
+    }
+    */
 }
 
 // DTOs para las peticiones
@@ -278,7 +297,7 @@ public class QueryRequest
 {
     public string Question { get; set; } = string.Empty;
     public int? ProjectId { get; set; }
-    public int? TopK { get; set; } = 5;
+    public int? TopK { get; set; } = 10; // Aumentado de 5 a 10 para más contexto
 }
 
 public class BudgetGenerationRequest
