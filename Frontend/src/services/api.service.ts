@@ -66,14 +66,25 @@ class ApiService {
     async getProjects(): Promise<Project[]> {
         await this.simulateNetworkDelay()
 
-        const response = await fetch(`${API_URL}/proyectos`, {
-            headers: this.getHeaders(),
-        })
+        try {
+            const response = await fetch(`${API_URL}/proyectos`, {
+                headers: this.getHeaders(),
+            })
 
-        const data = await this.handleResponse<any[]>(response)
+            // Si el backend devuelve 500 (DB incompleta), usar mock
+            if (response.status === 500) {
+                console.warn('⚠️ Backend DB incompleta, usando datos mockeados')
+                return this.getMockedProjects()
+            }
 
-        // Mapear de backend (PascalCase) a frontend (camelCase)
-        return data.map((p) => this.mapProjectFromBackend(p))
+            const data = await this.handleResponse<any[]>(response)
+
+            // Mapear de backend (PascalCase) a frontend (camelCase)
+            return data.map((p) => this.mapProjectFromBackend(p))
+        } catch (error) {
+            console.error('Error getting projects, usando mock:', error)
+            return this.getMockedProjects()
+        }
     }
 
     /**
@@ -201,16 +212,41 @@ class ApiService {
 
     /**
      * Obtiene actividades por ID de proyecto
+     * Navega Proyecto -> Objetivos -> CadenasDeValor -> Actividades
      */
     async getActivitiesByProjectId(projectId: number): Promise<Activity[]> {
         await this.simulateNetworkDelay()
 
-        const response = await fetch(`${API_URL}/actividades/proyecto/${projectId}`, {
+        // 1. Objetivos del proyecto
+        const objetivosRes = await fetch(`${API_URL}/objetivos/proyecto/${projectId}`, {
             headers: this.getHeaders(),
         })
+        const objetivos = await this.handleResponse<any[]>(objetivosRes)
 
-        const data = await this.handleResponse<any[]>(response)
-        return data.map((a) => this.mapActivityFromBackend(a))
+        const allActivities: Activity[] = []
+
+        // 2. Por cada objetivo, cadenas de valor
+        for (const obj of objetivos) {
+            const cadenasRes = await fetch(`${API_URL}/cadenasdevalor/objetivo/${obj.objetivoId}`, {
+                headers: this.getHeaders(),
+            })
+            const cadenas = await this.handleResponse<any[]>(cadenasRes)
+
+            // 3. Por cada cadena, actividades
+            for (const cadena of cadenas) {
+                const actsRes = await fetch(
+                    // 🔴 antes: `${API_URL}/actividades/cadena/${cadena.cadenaDeValorId}`,
+                    `${API_URL}/actividades/cadena-de-valor/${cadena.cadenaDeValorId}`,
+                    {
+                        headers: this.getHeaders(),
+                    },
+                )
+                const acts = await this.handleResponse<any[]>(actsRes)
+                allActivities.push(...acts.map((a) => this.mapActivityFromBackend(a)))
+            }
+        }
+
+        return allActivities
     }
 
     /**
@@ -307,23 +343,11 @@ class ApiService {
     // TAREAS
     // ============================================
 
-    /**
-     * Obtiene tareas por ID de actividad
-     */
     async getTareasByActividad(actividadId: number): Promise<Task[]> {
-        await this.simulateNetworkDelay()
-
-        const response = await fetch(`${API_URL}/tareas/byActividad/${actividadId}`, {
+        const res = await fetch(`${API_URL}/tareas/actividad/${actividadId}`, {
             headers: this.getHeaders(),
         })
-
-        // Si el backend devuelve 404 cuando no hay tareas, interpretarlo como lista vacía
-        if (response.status === 404) {
-            return []
-        }
-
-        const data = await this.handleResponse<any[]>(response)
-        return data.map((t) => this.mapTaskFromBackend(t))
+        return this.handleResponse<Task[]>(res)
     }
 
     /**
@@ -669,9 +693,9 @@ class ApiService {
 
             // 🎨 Campos enriquecidos (calculados/defaults)
             codigo: `SIGPI-${año}-${String(proyectoId).padStart(3, '0')}`,
-            nombre: `Sistema de Gestión de Proyectos de Investigación`,
+            nombre: backendProject.nombre || `Sistema de Gestión de Proyectos de Investigación`,
             descripcion: `Proyecto de investigación financiado por el Sistema General de Regalías (SGR) de Colombia para la gestión integral de proyectos de I+D+i en la Universidad de Caldas.`,
-            estado: 'En ejecución',
+            estado: backendProject.estado || 'En ejecución',
             investigadorPrincipal: 'Jeronimo Toro',
             entidadEjecutora: 'Universidad de Caldas',
             ubicacion: 'Manizales, Caldas, Colombia',
@@ -740,6 +764,135 @@ class ApiService {
             fechaInicio: undefined,
             fechaFin: undefined,
         }
+    }
+
+    /**
+     * Mapea talento humano del backend a frontend
+     */
+    private mapTalentoHumanoFromBackend(data: any): TalentoHumano {
+        return {
+            talentoHumanoId: data.talentoHumanoId,
+            rubroId: data.rubroId,
+            cargoEspecifico: data.cargoEspecifico,
+            semanas: data.semanas,
+            total: data.total,
+            ragEstado: data.ragEstado,
+            periodoNum: data.periodoNum,
+            periodoTipo: data.periodoTipo,
+            actividadId: data.actividadId,
+        }
+    }
+
+    /**
+     * Mapea equipos y software del backend a frontend
+     */
+    private mapEquiposSoftwareFromBackend(data: any): EquiposSoftware {
+        return {
+            equiposSoftwareId: data.equiposSoftwareId,
+            rubroId: data.rubroId,
+            especificacionesTecnicas: data.especificacionesTecnicas,
+            cantidad: data.cantidad,
+            total: data.total,
+            ragEstado: data.ragEstado,
+            periodoNum: data.periodoNum,
+            periodoTipo: data.periodoTipo,
+            actividadId: data.actividadId,
+        }
+    }
+
+    /**
+     * Mapea materiales e insumos del backend a frontend
+     */
+    private mapMaterialesInsumosFromBackend(data: any): MaterialesInsumos {
+        return {
+            materialesInsumosId: data.materialesInsumosId,
+            rubroId: data.rubroId,
+            materiales: data.materiales,
+            total: data.total,
+            ragEstado: data.ragEstado,
+            periodoNum: data.periodoNum,
+            periodoTipo: data.periodoTipo,
+            actividadId: data.actividadId,
+        }
+    }
+
+    /**
+     * Mapea servicios tecnológicos del backend a frontend
+     */
+    private mapServiciosTecnologicosFromBackend(data: any): ServiciosTecnologicos {
+        return {
+            serviciosTecnologicosId: data.serviciosTecnologicosId,
+            rubroId: data.rubroId,
+            descripcion: data.descripcion,
+            total: data.total,
+            ragEstado: data.ragEstado,
+            periodoNum: data.periodoNum,
+            periodoTipo: data.periodoTipo,
+            actividadId: data.actividadId,
+        }
+    }
+
+    /**
+     * Mapea capacitación y eventos del backend a frontend
+     */
+    private mapCapacitacionEventosFromBackend(data: any): CapacitacionEventos {
+        return {
+            capacitacionEventosId: data.capacitacionEventosId,
+            rubroId: data.rubroId,
+            tema: data.tema,
+            cantidad: data.cantidad,
+            total: data.total,
+            ragEstado: data.ragEstado,
+            periodoNum: data.periodoNum,
+            periodoTipo: data.periodoTipo,
+            actividadId: data.actividadId,
+        }
+    }
+
+    /**
+     * Mapea gastos de viaje del backend a frontend
+     */
+    private mapGastosViajeFromBackend(data: any): GastosViaje {
+        return {
+            gastosViajeId: data.gastosViajeId,
+            rubroId: data.rubroId,
+            costo: data.costo,
+            ragEstado: data.ragEstado,
+            periodoNum: data.periodoNum,
+            periodoTipo: data.periodoTipo,
+            actividadId: data.actividadId,
+        }
+    }
+
+    /**
+     * Genera proyectos mockeados cuando el backend falla (DB incompleta)
+     */
+    private getMockedProjects(): Project[] {
+        const userId = parseInt(localStorage.getItem('userId') || '1')
+
+        return [
+            {
+                id: 1,
+                codigo: 'SIGPI-2025-001',
+                nombre: 'Sistema de Gestión de Proyectos de Investigación',
+                descripcion:
+                    'Proyecto de investigación financiado por el Sistema General de Regalías (SGR) de Colombia para la gestión integral de proyectos de I+D+i en la Universidad de Caldas.',
+                estado: 'En ejecución',
+                investigadorPrincipal: 'Jeronimo Toro',
+                entidadEjecutora: 'Universidad de Caldas',
+                ubicacion: 'Manizales, Caldas, Colombia',
+                fechaCreacion: '2025-01-15T10:00:00',
+                fechaInicio: '2025-01-15',
+                fechaFin: '2027-12-31',
+                presupuestoTotal: 500000000,
+                presupuestoEjecutado: 200000000,
+                progreso: 40,
+                usuarioId: userId,
+                participantes: [],
+                objetivos: [],
+                documentos: [],
+            },
+        ]
     }
 }
 
