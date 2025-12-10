@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import type { User } from '@/models/business/user.model'
-import AuthService from '@/services/AuthService'
+import { AuthService } from '@/services/auth.service'
 
 interface UserState {
     // Estado
