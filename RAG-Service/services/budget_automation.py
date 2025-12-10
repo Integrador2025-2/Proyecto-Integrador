@@ -97,7 +97,8 @@ class BudgetAutomationService:
                 "excel_path": excel_path,
                 "generated_at": datetime.now().isoformat(),
                 "confidence_score": budget_data.get("confidence_score", 0.0),
-                "source_documents": len(project_docs)
+                "source_documents": [doc.get("filename", "unknown") for doc in project_docs] if project_docs else [],
+                "source_activities": []
             }
             
         except Exception as e:
