@@ -3,6 +3,7 @@ using Backend.Queries.TalentoHumano;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Controllers;
 
@@ -67,8 +68,39 @@ public class TalentoHumanoController : ControllerBase
             return BadRequest("CargoEspecifico is required.");
         }
 
-        var result = await _mediator.Send(command);
-        return CreatedAtAction(nameof(GetById), new { id = result.TalentoHumanoId }, result);
+        try
+        {
+            var result = await _mediator.Send(command);
+            return CreatedAtAction(nameof(GetById), new { id = result.TalentoHumanoId }, result);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("FK_TalentoHumano_RecursosEspecificos_RecursoEspecificoId") == true)
+        {
+            return StatusCode(500, new { 
+                error = "Error al crear el talento humano", 
+                details = $"El RecursoEspecificoId {command.RecursoEspecificoId} no existe. Primero debe crear un RecursoEspecifico usando POST /api/recursosespecificos con RecursoId y Nombre válidos." 
+            });
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("FK_TalentoHumano_Contrataciones_ContratacionId") == true)
+        {
+            return StatusCode(500, new { 
+                error = "Error al crear el talento humano", 
+                details = $"El ContratacionId {command.ContratacionId} no existe. Primero debe crear una Contratacion usando POST /api/contrataciones con los datos de contratación válidos." 
+            });
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "DbUpdateException creating TalentoHumano");
+            return StatusCode(500, new { 
+                error = "Error al crear el talento humano", 
+                details = ex.InnerException?.Message ?? ex.Message,
+                fullError = ex.ToString()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating TalentoHumano");
+            return StatusCode(500, new { error = "An error occurred while creating the TalentoHumano", details = ex.Message });
+        }
     }
 
     [HttpPut("{id}")]

@@ -1,9 +1,16 @@
+using System.Text.Json.Serialization;
+
 namespace Backend.Models.DTOs;
 
 public class RAGQueryRequestDto
 {
+    [JsonPropertyName("question")]
     public string Question { get; set; } = string.Empty;
+    
+    [JsonPropertyName("project_id")]
     public int? ProjectId { get; set; }
+    
+    [JsonPropertyName("top_k")]
     public int? TopK { get; set; } = 5;
 }
 
@@ -37,20 +44,40 @@ public class RAGDocumentUploadResponseDto
 
 public class RAGActivityForBudgetDto
 {
+    [JsonPropertyName("actividad_id")]
     public int? ActividadId { get; set; }
+    
+    [JsonPropertyName("nombre")]
     public string Nombre { get; set; } = string.Empty;
+    
+    [JsonPropertyName("descripcion")]
     public string? Descripcion { get; set; }
+    
+    [JsonPropertyName("justificacion")]
     public string? Justificacion { get; set; }
+    
+    [JsonPropertyName("especificaciones_tecnicas")]
     public string? EspecificacionesTecnicas { get; set; }
+    
+    [JsonPropertyName("cantidad_anios")]
     public int? CantidadAnios { get; set; } = 1;
+    
+    [JsonPropertyName("valor_unitario")]
     public decimal? ValorUnitario { get; set; }
+    
+    [JsonPropertyName("duracion_dias")]
     public int? DuracionDias { get; set; }
 }
 
 public class RAGBudgetGenerationRequestDto
 {
+    [JsonPropertyName("project_id")]
     public int ProjectId { get; set; }
+    
+    [JsonPropertyName("project_description")]
     public string ProjectDescription { get; set; } = string.Empty;
+    
+    [JsonPropertyName("budget_categories")]
     public List<string> BudgetCategories { get; set; } = new()
     {
         "TalentoHumano",
@@ -60,7 +87,11 @@ public class RAGBudgetGenerationRequestDto
         "CapacitacionEventos",
         "GastosViaje"
     };
+    
+    [JsonPropertyName("duration_years")]
     public int DurationYears { get; set; } = 1;
+    
+    [JsonPropertyName("activities")]
     public List<RAGActivityForBudgetDto>? Activities { get; set; } // Lista opcional de actividades
 }
 
@@ -94,15 +125,25 @@ public class RAGProjectDocumentsResponseDto
 
 public class RAGBudgetSuggestionDto
 {
+    [JsonPropertyName("category")]
     public string Category { get; set; } = string.Empty;
+    
+    [JsonPropertyName("suggested_items")]
     public List<Dictionary<string, object>> SuggestedItems { get; set; } = new();
+    
+    [JsonPropertyName("reasoning")]
     public string Reasoning { get; set; } = string.Empty;
+    
+    [JsonPropertyName("confidence")]
     public float Confidence { get; set; }
 }
 
 public class RAGBudgetSuggestionsResponseDto
 {
+    [JsonPropertyName("project_id")]
     public int ProjectId { get; set; }
+    
+    [JsonPropertyName("suggestions")]
     public List<RAGBudgetSuggestionDto> Suggestions { get; set; } = new();
 }
 
@@ -125,41 +166,76 @@ public class RAGActivityDto
 
 public class RAGResourceDto
 {
-    public int? Id { get; set; }
+    [JsonPropertyName("id")]
+    public int Id { get; set; }
+    
+    [JsonPropertyName("nombre")]
     public string Nombre { get; set; } = string.Empty;
-    public string Tipo { get; set; } = string.Empty;
-    public double? CostoUnitario { get; set; }
-    public string? Unidad { get; set; }
-    public double? Disponibilidad { get; set; }
+    
+    [JsonPropertyName("costo")]
+    public decimal Costo { get; set; }
+    
+    [JsonPropertyName("tipo")]
+    public string? Tipo { get; set; }
+    
+    [JsonPropertyName("disponible")]
+    public bool Disponible { get; set; } = true;
 }
 
 public class RAGResourceAssignmentDto
 {
-    public int? ActividadId { get; set; }
-    public string ActividadNombre { get; set; } = string.Empty;
-    public int? RecursoId { get; set; }
-    public string RecursoNombre { get; set; } = string.Empty;
-    public string RecursoTipo { get; set; } = string.Empty;
-    public double Cantidad { get; set; }
-    public double? CostoEstimado { get; set; }
-    public string? Justificacion { get; set; }
+    [JsonPropertyName("actividad_id")]
+    public int ActividadId { get; set; }
+
+    [JsonPropertyName("recurso_id")]
+    public int RecursoId { get; set; }
+    
+    [JsonPropertyName("nombre_recurso")]
+    public string NombreRecurso { get; set; } = string.Empty;
+
+    [JsonPropertyName("costo_asignado")]
+    public decimal CostoAsignado { get; set; }
 }
 
-public class RAGResourcePlanRequestDto
+public class RAGActivityForResourceDto
 {
-    public int? ProjectId { get; set; }
-    public List<RAGActivityDto> Actividades { get; set; } = new();
+    [JsonPropertyName("id")]
+    public int Id { get; set; }
+    
+    [JsonPropertyName("nombre")]
+    public string Nombre { get; set; } = string.Empty;
+    
+    [JsonPropertyName("descripcion")]
+    public string? Descripcion { get; set; }
+}
+
+public class RAGResourcePlanningRequestDto
+{
+    [JsonPropertyName("project_id")]
+    public int ProjectId { get; set; }
+
+    [JsonPropertyName("actividades")]
+    public List<RAGActivityForResourceDto> Actividades { get; set; } = new();
+
+    [JsonPropertyName("recursos")]
     public List<RAGResourceDto> Recursos { get; set; } = new();
-    public string? Objetivo { get; set; }
-    public double? PresupuestoMaximo { get; set; }
+
+    [JsonPropertyName("presupuesto_maximo")]
+    public decimal PresupuestoMaximo { get; set; }
 }
 
-public class RAGResourcePlanResponseDto
+public class RAGResourcePlanningResponseDto
 {
-    public int? ProjectId { get; set; }
+    [JsonPropertyName("asignaciones")]
     public List<RAGResourceAssignmentDto> Asignaciones { get; set; } = new();
+
+    [JsonPropertyName("resumen")]
     public string Resumen { get; set; } = string.Empty;
+
+    [JsonPropertyName("criterios_utilizados")]
     public List<string> CriteriosUtilizados { get; set; } = new();
+
+    [JsonPropertyName("confianza")]
     public float Confianza { get; set; }
 }
 
@@ -193,4 +269,37 @@ public class SaveExtractedBudgetResponseDto
     public int ItemsCreated { get; set; }
     public Dictionary<string, int> ItemsPerRubro { get; set; } = new();
     public List<string> Errors { get; set; } = new();
+}
+
+public class RAGExtractedActivitiesDto
+{
+    [JsonPropertyName("project_id")]
+    public int ProjectId { get; set; }
+
+    [JsonPropertyName("activities")]
+    public List<RAGExtractedActivityDto> Activities { get; set; } = new();
+
+    [JsonPropertyName("total_activities")]
+    public int TotalActivities { get; set; }
+}
+
+public class RAGExtractedActivityDto
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    [JsonPropertyName("justification")]
+    public string? Justification { get; set; }
+
+    [JsonPropertyName("technical_specifications")]
+    public string? TechnicalSpecifications { get; set; }
+
+    [JsonPropertyName("duration_years")]
+    public int? DurationYears { get; set; }
+
+    [JsonPropertyName("unit_value")]
+    public decimal? UnitValue { get; set; }
 }
