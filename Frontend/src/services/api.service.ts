@@ -13,6 +13,7 @@ import type {
     RAGQueryRequest,
     RAGQueryResponse,
     RAGBudgetGenerationRequest,
+    BackendObjective,
 } from '../types'
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5043/api'
 
@@ -638,6 +639,13 @@ class ApiService {
         return data.map((g) => this.mapGastosViajeFromBackend(g))
     }
 
+    async getObjectivesByProjectId(projectId: number): Promise<BackendObjective[]> {
+        const res = await fetch(`${API_URL}/objetivos/proyecto/${projectId}`, {
+            headers: this.getHeaders(),
+        })
+        return this.handleResponse<BackendObjective[]>(res)
+    }
+
     // ============================================
     // RAG SERVICE (Opcional - para futuras features)
     // ============================================
@@ -661,6 +669,79 @@ class ApiService {
      * Genera presupuesto usando IA
      */
     async generateBudgetWithAI(request: RAGBudgetGenerationRequest): Promise<any> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/rag/budget/generate`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(request),
+        })
+
+        return await this.handleResponse<any>(response)
+    }
+
+    /**
+     * Sube un documento para RAG
+     */
+    async uploadDocument(
+        file: File,
+        projectId?: number,
+        documentType: string = 'project_document'
+    ): Promise<any> {
+        const formData = new FormData()
+        formData.append('file', file)
+        if (projectId) {
+            formData.append('project_id', projectId.toString())
+        }
+        formData.append('document_type', documentType)
+
+        const response = await fetch(`${API_URL}/rag/documents/upload`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${this.getToken()}`,
+            },
+            body: formData,
+        })
+
+        return await this.handleResponse<any>(response)
+    }
+
+    /**
+     * Obtiene documentos de un proyecto
+     */
+    async getProjectDocuments(projectId: number): Promise<any[]> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/rag/projects/${projectId}/documents`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        })
+
+        return await this.handleResponse<any[]>(response)
+    }
+
+    /**
+     * Elimina un documento
+     */
+    async deleteDocument(documentId: number): Promise<void> {
+        await this.simulateNetworkDelay()
+
+        const response = await fetch(`${API_URL}/rag/documents/${documentId}`, {
+            method: 'DELETE',
+            headers: this.getHeaders(),
+        })
+
+        await this.handleResponse<void>(response)
+    }
+
+    /**
+     * Genera presupuesto (método simplificado)
+     */
+    async generateBudget(request: {
+        projectId: number
+        projectDescription: string
+        durationYears: number
+    }): Promise<any> {
         await this.simulateNetworkDelay()
 
         const response = await fetch(`${API_URL}/rag/budget/generate`, {

@@ -415,6 +415,15 @@ export interface Rubro {
     descripcion?: string
 }
 
+export interface BackendObjective {
+    objetivoId: number
+    proyectoId: number
+    nombre: string
+    descripcion: string
+    resultadoEsperado: string
+    proyectoNombre: string
+}
+
 // ============================================
 // USUARIOS Y ROLES - Para administración
 // ============================================
