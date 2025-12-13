@@ -7,6 +7,7 @@ import {
     FileText,
     Settings,
     LogOut,
+    Brain,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useAuthStore } from '../../store/authStore'
@@ -23,6 +24,12 @@ export default function Sidebar() {
         { icon: Users, label: 'Equipo', path: '/team' },
         { icon: FileText, label: 'Documentos', path: '/documents' },
         { icon: Settings, label: 'Configuración', path: '/settings' },
+    ]
+
+    const ragMenuItems = [
+        { icon: Brain, label: 'Consultas IA', path: '/rag/query' },
+        { icon: FileText, label: 'Documentos RAG', path: '/rag/documents' },
+        { icon: FileText, label: 'Generar Presupuesto', path: '/rag/budget-generation' },
     ]
 
     const isActive = (path: string) => location.pathname === path
@@ -74,6 +81,33 @@ export default function Sidebar() {
                         )
                     })}
                 </ul>
+
+                {/* RAG Section */}
+                <div className="mt-6">
+                    <h3 className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        RAG / IA
+                    </h3>
+                    <ul className="space-y-1">
+                        {ragMenuItems.map((item) => {
+                            const Icon = item.icon
+                            return (
+                                <li key={item.path}>
+                                    <Link
+                                        to={item.path}
+                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                                            isActive(item.path)
+                                                ? 'bg-purple-50 text-purple-600 font-medium'
+                                                : 'text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Icon className="w-5 h-5" />
+                                        <span className="text-sm">{item.label}</span>
+                                    </Link>
+                                </li>
+                            )
+                        })}
+                    </ul>
+                </div>
             </nav>
 
             {/* Logout Button */}

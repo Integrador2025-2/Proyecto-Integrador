@@ -22,6 +22,7 @@ import MaterialesInsumosTab from './budget/MaterialesInsumosTab'
 import ServiciosTecnologicosTab from './budget/ServiciosTecnologicosTab'
 import CapacitacionEventosTab from './budget/CapacitacionEventosTab'
 import GastosViajeTab from './budget/GastosViajeTab'
+import BudgetDetailTab from './budget/BudgetDetailTab'
 
 interface BudgetTabProps {
     project: Project
@@ -62,17 +63,15 @@ export default function BudgetTab({ project }: BudgetTabProps) {
             try {
                 setIsLoading(true)
 
-                // Primero actividades (depende de endpoints que ya sabemos que funcionan)
                 const activityData = await apiService.getActivitiesByProjectId(project.id)
                 setActivities(activityData)
 
-                // Luego rubros, pero tolerando fallo
                 try {
                     const rubrosData = await apiService.getRubros()
                     setRubros(rubrosData)
                 } catch (rubrosError) {
                     console.error('Error loading rubros:', rubrosError)
-                    setRubros([]) // seguir sin rubros
+                    setRubros([])
                 }
             } catch (error) {
                 console.error('Error loading budget data:', error)
@@ -83,10 +82,9 @@ export default function BudgetTab({ project }: BudgetTabProps) {
             }
         }
 
-        loadData()
+        void loadData()
     }, [project.id])
 
-    // Calcular estadísticas del presupuesto
     const calculateBudgetStats = (): BudgetStats => {
         let total = project.presupuestoTotal ?? 0
 
@@ -108,12 +106,10 @@ export default function BudgetTab({ project }: BudgetTabProps) {
         }
     }
 
-    // Calcular presupuesto por actividades
     const calculateActivityBudgets = (): ActivityBudget[] => {
         const budgetStats = calculateBudgetStats()
 
         return activities.map((activity) => {
-            // Usar valorUnitario si valorTotal no existe
             const valor = activity.valorTotal || activity.valorUnitario || 0
 
             return {
@@ -125,18 +121,16 @@ export default function BudgetTab({ project }: BudgetTabProps) {
         })
     }
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('es-CO', {
+    const formatCurrency = (amount: number) =>
+        new Intl.NumberFormat('es-CO', {
             style: 'currency',
             currency: 'COP',
             minimumFractionDigits: 0,
         }).format(amount)
-    }
 
     const stats = calculateBudgetStats()
     const activityBudgets = calculateActivityBudgets()
 
-    // Determinar estado de salud del presupuesto
     const getBudgetHealthStatus = () => {
         if (stats.porcentajeEjecutado <= 50) {
             return {
@@ -188,15 +182,16 @@ export default function BudgetTab({ project }: BudgetTabProps) {
                         return (
                             <button
                                 key={tab.id}
+                                type="button"
                                 onClick={() => setActiveSubTab(tab.id)}
                                 className={`
-                                    flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors whitespace-nowrap
-                                    ${
-                                        activeSubTab === tab.id
-                                            ? 'border-blue-600 text-blue-600'
-                                            : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'
-                                    }
-                                `}
+                  flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors whitespace-nowrap
+                  ${
+                      activeSubTab === tab.id
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300'
+                  }
+                `}
                             >
                                 <Icon className="w-4 h-4" />
                                 {tab.name}
@@ -226,7 +221,6 @@ export default function BudgetTab({ project }: BudgetTabProps) {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {/* Presupuesto Total */}
                             <div className="bg-white rounded-lg p-4 border border-gray-200">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -243,7 +237,6 @@ export default function BudgetTab({ project }: BudgetTabProps) {
                                 </p>
                             </div>
 
-                            {/* Presupuesto Ejecutado */}
                             <div className="bg-white rounded-lg p-4 border border-gray-200">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -263,7 +256,6 @@ export default function BudgetTab({ project }: BudgetTabProps) {
                                 </p>
                             </div>
 
-                            {/* Presupuesto Disponible */}
                             <div className="bg-white rounded-lg p-4 border border-gray-200">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -284,7 +276,6 @@ export default function BudgetTab({ project }: BudgetTabProps) {
                             </div>
                         </div>
 
-                        {/* Barra de progreso general */}
                         <div className="mt-4">
                             <div className="flex items-center justify-between text-sm mb-2">
                                 <span className="font-medium text-gray-700">
@@ -355,6 +346,14 @@ export default function BudgetTab({ project }: BudgetTabProps) {
                                 ))}
                             </div>
                         )}
+                    </div>
+
+                    {/* Detalle por rubro */}
+                    <div className="bg-white rounded-xl border border-gray-200 p-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">
+                            Detalle por tipo de rubro
+                        </h3>
+                        <BudgetDetailTab projectId={project.id} rubros={rubros} />
                     </div>
 
                     {/* Alertas y Recomendaciones */}

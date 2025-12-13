@@ -1,20 +1,8 @@
 import { useState, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Label } from '../../components/ui/label'
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from '../../components/ui/card'
-import { Alert, AlertDescription } from '../../components/ui/alert'
 
-export const RegisterPage = () => {
+export default function RegisterPage() {
     const navigate = useNavigate()
     const { register, isLoading } = useAuth()
 
@@ -78,7 +66,7 @@ export const RegisterPage = () => {
                 password: formData.password,
                 roleId: 2, // Usuario por defecto
             })
-            navigate('/')
+            navigate('/dashboard')
         } catch (err: any) {
             console.error('Register error:', err)
             setError(
@@ -96,113 +84,143 @@ export const RegisterPage = () => {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50 py-8">
-            <Card className="w-full max-w-md">
-                <CardHeader className="space-y-1">
-                    <CardTitle className="text-2xl font-bold text-center">Crear Cuenta</CardTitle>
-                    <CardDescription className="text-center">
-                        Complete el formulario para registrarse
-                    </CardDescription>
-                </CardHeader>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+            <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900">Crear Cuenta</h1>
+                    <p className="text-gray-600 mt-2">Complete el formulario para registrarse</p>
+                </div>
 
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {error && (
-                            <Alert variant="destructive">
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                        )}
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                        {error}
+                    </div>
+                )}
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="firstName">Nombre</Label>
-                                <Input
-                                    id="firstName"
-                                    name="firstName"
-                                    type="text"
-                                    placeholder="Juan"
-                                    value={formData.firstName}
-                                    onChange={handleInputChange}
-                                    disabled={isLoading}
-                                    required
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="lastName">Apellido</Label>
-                                <Input
-                                    id="lastName"
-                                    name="lastName"
-                                    type="text"
-                                    placeholder="Pérez"
-                                    value={formData.lastName}
-                                    onChange={handleInputChange}
-                                    disabled={isLoading}
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Correo Electrónico</Label>
-                            <Input
-                                id="email"
-                                name="email"
-                                type="email"
-                                placeholder="correo@ejemplo.com"
-                                value={formData.email}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                htmlFor="firstName"
+                                className="block text-sm font-medium text-gray-700 mb-2"
+                            >
+                                Nombre
+                            </label>
+                            <input
+                                id="firstName"
+                                name="firstName"
+                                type="text"
+                                placeholder="Juan"
+                                value={formData.firstName}
                                 onChange={handleInputChange}
                                 disabled={isLoading}
                                 required
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Contraseña</Label>
-                            <Input
-                                id="password"
-                                name="password"
-                                type="password"
-                                placeholder="••••••••"
-                                value={formData.password}
+                        <div>
+                            <label
+                                htmlFor="lastName"
+                                className="block text-sm font-medium text-gray-700 mb-2"
+                            >
+                                Apellido
+                            </label>
+                            <input
+                                id="lastName"
+                                name="lastName"
+                                type="text"
+                                placeholder="Pérez"
+                                value={formData.lastName}
                                 onChange={handleInputChange}
                                 disabled={isLoading}
                                 required
-                            />
-                            <p className="text-xs text-gray-500">
-                                Mínimo 8 caracteres, incluir mayúsculas, minúsculas y números
-                            </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
-                            <Input
-                                id="confirmPassword"
-                                name="confirmPassword"
-                                type="password"
-                                placeholder="••••••••"
-                                value={formData.confirmPassword}
-                                onChange={handleInputChange}
-                                disabled={isLoading}
-                                required
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                             />
                         </div>
+                    </div>
 
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
-                        </Button>
-                    </form>
-                </CardContent>
+                    <div>
+                        <label
+                            htmlFor="email"
+                            className="block text-sm font-medium text-gray-700 mb-2"
+                        >
+                            Correo Electrónico
+                        </label>
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            placeholder="correo@ejemplo.com"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            disabled={isLoading}
+                            required
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                        />
+                    </div>
 
-                <CardFooter className="flex flex-col space-y-2">
-                    <div className="text-sm text-center text-gray-600">
+                    <div>
+                        <label
+                            htmlFor="password"
+                            className="block text-sm font-medium text-gray-700 mb-2"
+                        >
+                            Contraseña
+                        </label>
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            placeholder="••••••••"
+                            value={formData.password}
+                            onChange={handleInputChange}
+                            disabled={isLoading}
+                            required
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            Mínimo 8 caracteres, incluir mayúsculas, minúsculas y números
+                        </p>
+                    </div>
+
+                    <div>
+                        <label
+                            htmlFor="confirmPassword"
+                            className="block text-sm font-medium text-gray-700 mb-2"
+                        >
+                            Confirmar Contraseña
+                        </label>
+                        <input
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            type="password"
+                            placeholder="••••••••"
+                            value={formData.confirmPassword}
+                            onChange={handleInputChange}
+                            disabled={isLoading}
+                            required
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+                    >
+                        {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
+                    </button>
+                </form>
+
+                <div className="mt-6 text-center">
+                    <p className="text-sm text-gray-600">
                         ¿Ya tiene una cuenta?{' '}
-                        <Link to="/login" className="text-blue-600 hover:underline font-medium">
+                        <Link to="/login" className="text-blue-600 hover:text-blue-700 font-semibold">
                             Inicie sesión aquí
                         </Link>
-                    </div>
-                </CardFooter>
-            </Card>
+                    </p>
+                </div>
+            </div>
         </div>
     )
 }
