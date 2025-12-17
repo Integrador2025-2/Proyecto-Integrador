@@ -2,6 +2,7 @@ using Backend.Commands.Roles;
 using Backend.Models.DTOs;
 using Backend.Queries.Roles;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Controllers;
@@ -11,180 +12,276 @@ namespace Backend.Controllers;
 public class RolesController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly ILogger<RolesController> _logger;
 
-    public RolesController(IMediator mediator)
+    public RolesController(IMediator mediator, ILogger<RolesController> logger)
     {
         _mediator = mediator;
+        _logger = logger;
     }
 
     /// <summary>
-    /// Obtiene todos los roles
+    /// Obtiene todos los roles del sistema
     /// </summary>
-    /// <param name="isActive">Filtrar por estado activo</param>
-    /// <param name="searchTerm">Término de búsqueda</param>
-    /// <returns>Lista de roles</returns>
     [HttpGet]
-    public async Task<ActionResult<List<RoleDto>>> GetAllRoles(
-        [FromQuery] bool? isActive = null,
-        [FromQuery] string? searchTerm = null)
+    public async Task<ActionResult<IEnumerable<RoleDto>>> GetAll()
     {
-        var query = new GetAllRolesQuery
+        try
         {
-            IsActive = isActive,
-            SearchTerm = searchTerm
-        };
-
-        var roles = await _mediator.Send(query);
-        return Ok(roles);
+            var roles = await _mediator.Send(new GetAllRolesQuery());
+            return Ok(roles);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener roles");
+            return StatusCode(500, "Error al obtener los roles");
+        }
     }
 
     /// <summary>
-    /// Obtiene un rol por ID
+    /// Obtiene un rol por su ID
     /// </summary>
-    /// <param name="id">ID del rol</param>
-    /// <returns>Rol encontrado</returns>
     [HttpGet("{id}")]
-    public async Task<ActionResult<RoleDto>> GetRoleById(int id)
+    public async Task<ActionResult<RoleDto>> GetById(int id)
     {
-        var query = new GetRoleByIdQuery { Id = id };
-        var role = await _mediator.Send(query);
-
-        if (role == null)
+        try
         {
-            return NotFound($"Rol con ID {id} no encontrado.");
-        }
+            if (id <= 0)
+            {
+                return BadRequest("El ID debe ser mayor a 0");
+            }
 
-        return Ok(role);
+            var role = await _mediator.Send(new GetRoleByIdQuery(id));
+            if (role == null)
+            {
+                return NotFound($"Rol con ID {id} no encontrado");
+            }
+
+            return Ok(role);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener rol {RoleId}", id);
+            return StatusCode(500, "Error al obtener el rol");
+        }
+    }
+
+    /// <summary>
+    /// Obtiene un rol por su nombre
+    /// </summary>
+    [HttpGet("nombre/{name}")]
+    public async Task<ActionResult<RoleDto>> GetByName(string name)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return BadRequest("El nombre no puede estar vacío");
+            }
+
+            var role = await _mediator.Send(new GetRoleByNameQuery(name));
+            if (role == null)
+            {
+                return NotFound($"Rol '{name}' no encontrado");
+            }
+
+            return Ok(role);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener rol por nombre {RoleName}", name);
+            return StatusCode(500, "Error al obtener el rol");
+        }
+    }
+
+    /// <summary>
+    /// Obtiene todos los usuarios que tienen un rol específico
+    /// </summary>
+    [HttpGet("{roleId}/usuarios")]
+    public async Task<ActionResult<IEnumerable<UserDto>>> GetUsersByRoleId(int roleId)
+    {
+        try
+        {
+            if (roleId <= 0)
+            {
+                return BadRequest("El ID del rol debe ser mayor a 0");
+            }
+
+            var users = await _mediator.Send(new GetUsersByRoleIdQuery(roleId));
+            return Ok(users);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener usuarios del rol {RoleId}", roleId);
+            return StatusCode(500, "Error al obtener los usuarios del rol");
+        }
     }
 
     /// <summary>
     /// Crea un nuevo rol
     /// </summary>
-    /// <param name="createRoleDto">Datos del rol a crear</param>
-    /// <returns>Rol creado</returns>
     [HttpPost]
-    public async Task<ActionResult<RoleDto>> CreateRole([FromBody] CreateRoleDto createRoleDto)
+    public async Task<ActionResult<RoleDto>> Create([FromBody] CreateRoleDto createRoleDto)
     {
-        var command = new CreateRoleCommand
-        {
-            Name = createRoleDto.Name,
-            Description = createRoleDto.Description,
-            Permissions = createRoleDto.Permissions
-        };
-
         try
         {
+            if (string.IsNullOrWhiteSpace(createRoleDto.Name))
+            {
+                return BadRequest("El nombre del rol es requerido");
+            }
+
+            var command = new CreateRoleCommand(
+                createRoleDto.Name,
+                createRoleDto.Description,
+                createRoleDto.Permissions
+            );
+
             var role = await _mediator.Send(command);
-            return CreatedAtAction(nameof(GetRoleById), new { id = role.Id }, role);
+            return CreatedAtAction(nameof(GetById), new { id = role.Id }, role);
         }
-        catch (ArgumentException ex)
+        catch (InvalidOperationException ex)
         {
-            return BadRequest(ex.Message);
+            _logger.LogWarning(ex, "Error al crear rol: {Message}", ex.Message);
+            return Conflict(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al crear rol");
+            return StatusCode(500, "Error al crear el rol");
         }
     }
 
     /// <summary>
     /// Actualiza un rol existente
     /// </summary>
-    /// <param name="id">ID del rol</param>
-    /// <param name="updateRoleDto">Datos actualizados del rol</param>
-    /// <returns>Rol actualizado</returns>
     [HttpPut("{id}")]
-    public async Task<ActionResult<RoleDto>> UpdateRole(int id, [FromBody] UpdateRoleDto updateRoleDto)
+    public async Task<ActionResult<RoleDto>> Update(int id, [FromBody] UpdateRoleDto updateRoleDto)
     {
-        if (id != updateRoleDto.Id)
-        {
-            return BadRequest("El ID en la URL no coincide con el ID en el cuerpo de la petición.");
-        }
-
-        var command = new UpdateRoleCommand
-        {
-            Id = updateRoleDto.Id,
-            Name = updateRoleDto.Name,
-            Description = updateRoleDto.Description,
-            Permissions = updateRoleDto.Permissions,
-            IsActive = updateRoleDto.IsActive
-        };
-
         try
         {
+            if (id <= 0)
+            {
+                return BadRequest("El ID debe ser mayor a 0");
+            }
+
+            if (id != updateRoleDto.Id)
+            {
+                return BadRequest("El ID de la URL no coincide con el ID del cuerpo");
+            }
+
+            if (string.IsNullOrWhiteSpace(updateRoleDto.Name))
+            {
+                return BadRequest("El nombre del rol es requerido");
+            }
+
+            var command = new UpdateRoleCommand(
+                updateRoleDto.Id,
+                updateRoleDto.Name,
+                updateRoleDto.Description,
+                updateRoleDto.Permissions,
+                updateRoleDto.IsActive
+            );
+
             var role = await _mediator.Send(command);
             return Ok(role);
         }
-        catch (ArgumentException ex)
+        catch (KeyNotFoundException ex)
         {
-            return NotFound(ex.Message);
-        }
-    }
-
-    /// <summary>
-    /// Elimina un rol
-    /// </summary>
-    /// <param name="id">ID del rol a eliminar</param>
-    /// <returns>Resultado de la eliminación</returns>
-    [HttpDelete("{id}")]
-    public async Task<ActionResult> DeleteRole(int id)
-    {
-        var command = new DeleteRoleCommand { Id = id };
-
-        try
-        {
-            var result = await _mediator.Send(command);
-            if (result)
-            {
-                return NoContent();
-            }
-            return NotFound($"Rol con ID {id} no encontrado.");
-        }
-        catch (ArgumentException ex)
-        {
+            _logger.LogWarning(ex, "Rol no encontrado: {Message}", ex.Message);
             return NotFound(ex.Message);
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(ex.Message);
+            _logger.LogWarning(ex, "Error al actualizar rol: {Message}", ex.Message);
+            return Conflict(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al actualizar rol");
+            return StatusCode(500, "Error al actualizar el rol");
         }
     }
 
     /// <summary>
-    /// Obtiene todos los usuarios de un rol específico
+    /// Elimina un rol (solo si no tiene usuarios asignados)
     /// </summary>
-    /// <param name="id">ID del rol</param>
-    /// <returns>Lista de usuarios del rol</returns>
-    [HttpGet("{id}/users")]
-    public async Task<ActionResult<List<UserDto>>> GetUsersByRole(int id)
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> Delete(int id)
     {
-        var query = new GetUsersByRoleQuery { RoleId = id };
-        var users = await _mediator.Send(query);
-        return Ok(users);
+        try
+        {
+            if (id <= 0)
+            {
+                return BadRequest("El ID debe ser mayor a 0");
+            }
+
+            var result = await _mediator.Send(new DeleteRoleCommand(id));
+            if (result)
+            {
+                return NoContent();
+            }
+
+            return NotFound($"Rol con ID {id} no encontrado");
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Rol no encontrado: {Message}", ex.Message);
+            return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "No se puede eliminar el rol: {Message}", ex.Message);
+            return Conflict(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al eliminar rol");
+            return StatusCode(500, "Error al eliminar el rol");
+        }
     }
 
     /// <summary>
     /// Asigna un rol a un usuario
     /// </summary>
-    /// <param name="assignRoleDto">Datos de asignación de rol</param>
-    /// <returns>Usuario actualizado</returns>
-    [HttpPost("assign")]
-    public async Task<ActionResult<UserDto>> AssignRoleToUser([FromBody] AssignRoleToUserDto assignRoleDto)
+    [HttpPost("asignar")]
+    public async Task<ActionResult> AssignRoleToUser([FromBody] AssignRoleToUserDto assignDto)
     {
-        var command = new AssignRoleToUserCommand
-        {
-            UserId = assignRoleDto.UserId,
-            RoleId = assignRoleDto.RoleId
-        };
-
         try
         {
-            var user = await _mediator.Send(command);
-            return Ok(user);
+            if (assignDto.UserId <= 0)
+            {
+                return BadRequest("El ID del usuario debe ser mayor a 0");
+            }
+
+            if (assignDto.RoleId <= 0)
+            {
+                return BadRequest("El ID del rol debe ser mayor a 0");
+            }
+
+            var command = new AssignRoleToUserCommand(assignDto.UserId, assignDto.RoleId);
+            var result = await _mediator.Send(command);
+
+            if (result)
+            {
+                return Ok(new { message = "Rol asignado exitosamente" });
+            }
+
+            return BadRequest("No se pudo asignar el rol");
         }
-        catch (ArgumentException ex)
+        catch (KeyNotFoundException ex)
         {
+            _logger.LogWarning(ex, "Entidad no encontrada: {Message}", ex.Message);
             return NotFound(ex.Message);
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(ex.Message);
+            _logger.LogWarning(ex, "Error al asignar rol: {Message}", ex.Message);
+            return Conflict(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado al asignar rol");
+            return StatusCode(500, "Error al asignar el rol");
         }
     }
 }

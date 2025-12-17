@@ -16,4 +16,7 @@ public interface IAuthService
     Task<bool> LogoutAsync(string refreshToken);
     string GenerateJwtToken(User user);
     string GenerateRefreshToken();
+    
+    // Solo desarrollo
+    Task<AuthResponseDto> DevLoginAsync(LoginRequestDto loginRequest);
 }

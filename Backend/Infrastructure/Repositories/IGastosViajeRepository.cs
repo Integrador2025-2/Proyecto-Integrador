@@ -1,12 +1,14 @@
 using Backend.Models.Domain;
+
 namespace Backend.Infrastructure.Repositories;
 
 public interface IGastosViajeRepository
 {
-    Task<List<GastosViaje>> GetAllAsync();
     Task<GastosViaje?> GetByIdAsync(int id);
-    Task<List<GastosViaje>> GetByRubroIdAsync(int rubroId);
-    Task<GastosViaje> CreateAsync(GastosViaje entity);
-    Task<GastosViaje?> UpdateAsync(GastosViaje entity);
+    Task<IEnumerable<GastosViaje>> GetAllAsync();
+    Task<GastosViaje?> GetByRecursoEspecificoIdAsync(int recursoEspecificoId);
+    Task<GastosViaje> CreateAsync(GastosViaje gastosViaje);
+    Task<GastosViaje> UpdateAsync(GastosViaje gastosViaje);
     Task<bool> DeleteAsync(int id);
+    Task<bool> ExistsAsync(int id);
 }

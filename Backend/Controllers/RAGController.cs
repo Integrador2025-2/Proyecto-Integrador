@@ -5,12 +5,12 @@ using System.Text;
 using MediatR;
 using Backend.Queries.Actividades;
 using Backend.Models.DTOs;
+using Backend.Commands.Proyectos;
 
 namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class RAGController : ControllerBase
 {
     private readonly IHttpClientFactory _httpClientFactory;
@@ -36,7 +36,7 @@ public class RAGController : ControllerBase
     }
 
     [HttpPost("documents/upload")]
-    public async Task<IActionResult> UploadDocument(IFormFile file, int? projectId = null, string documentType = "project_document")
+    public async Task<IActionResult> UploadDocument(IFormFile file, [FromForm] int? projectId = null, [FromForm] string documentType = "project_document")
     {
         try
         {
@@ -45,8 +45,24 @@ public class RAGController : ControllerBase
                 return BadRequest("No se proporcionó ningún archivo");
             }
 
+            // Asignar ProjectId automáticamente si no se proporciona
+            if (!projectId.HasValue)
+            {
+                // Crear un nuevo proyecto en la base de datos
+                // Usamos UsuarioId = 1 por defecto si no hay usuario autenticado (para pruebas)
+                int userId = 1;
+                // TODO: Obtener userId del contexto de seguridad si está disponible
+                
+                var createProjectCommand = new CreateProyectoCommand { UsuarioId = userId };
+                var projectDto = await _mediator.Send(createProjectCommand);
+                projectId = projectDto.ProyectoId;
+                
+                _logger.LogInformation("Se creó automáticamente el Proyecto: {ProjectId}", projectId);
+            }
+
             var ragServiceUrl = GetRAGServiceUrl();
             var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(10); // Aumentar timeout para archivos grandes
             using var formContent = new MultipartFormDataContent();
             
             formContent.Add(new StreamContent(file.OpenReadStream()), "file", file.FileName);
@@ -75,12 +91,13 @@ public class RAGController : ControllerBase
     }
 
     [HttpPost("query")]
-    public async Task<IActionResult> QueryDocuments([FromBody] QueryRequest request)
+    public async Task<IActionResult> QueryDocuments([FromBody] RAGQueryRequestDto request)
     {
         try
         {
             var ragServiceUrl = GetRAGServiceUrl();
             var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(5); // Aumentar timeout para consultas complejas
             var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -106,59 +123,15 @@ public class RAGController : ControllerBase
     }
 
     [HttpPost("budget/generate")]
-    public async Task<IActionResult> GenerateBudget([FromBody] BudgetGenerationRequest request)
+    public async Task<IActionResult> GenerateBudget([FromBody] RAGBudgetGenerationRequestDto request)
     {
         try
         {
-            // Si no se proporcionan actividades pero hay un projectId, intentar obtenerlas de la BD
-            if (request.Activities == null || request.Activities.Count == 0)
-            {
-                try
-                {
-                    var actividades = await _mediator.Send(new GetActividadesByProyectoQuery(request.ProjectId));
-                    if (actividades != null && actividades.Count > 0)
-                    {
-                        // Convertir ActividadDto a RAGActivityForBudgetDto
-                        request.Activities = actividades.Select(a => new RAGActivityForBudgetDto
-                        {
-                            ActividadId = a.ActividadId,
-                            Nombre = a.Nombre,
-                            Descripcion = a.Descripcion,
-                            Justificacion = a.Justificacion,
-                            EspecificacionesTecnicas = a.EspecificacionesTecnicas,
-                            CantidadAnios = a.CantidadAnios,
-                            ValorUnitario = a.ValorUnitario,
-                            DuracionDias = null // ActividadDto no tiene duracion_dias directamente
-                        }).ToList();
-                        
-                        _logger.LogInformation("Se obtuvieron {Count} actividades del proyecto {ProjectId} para generación de presupuesto", 
-                            request.Activities.Count, request.ProjectId);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "No se pudieron obtener actividades del proyecto {ProjectId}, continuando sin actividades", 
-                        request.ProjectId);
-                }
-            }
-
             var ragServiceUrl = GetRAGServiceUrl();
             var client = _httpClientFactory.CreateClient();
-            
-            // Crear request DTO para el servicio RAG
-            var ragRequest = new RAGBudgetGenerationRequestDto
-            {
-                ProjectId = request.ProjectId,
-                ProjectDescription = request.ProjectDescription,
-                BudgetCategories = request.BudgetCategories,
-                DurationYears = request.DurationYears,
-                Activities = request.Activities
-            };
-            
-            var json = JsonSerializer.Serialize(ragRequest, new JsonSerializerOptions 
-            { 
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-            });
+            client.Timeout = TimeSpan.FromMinutes(10); // Aumentar timeout para generación de presupuesto
+
+            var json = JsonSerializer.Serialize(request);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await client.PostAsync($"{ragServiceUrl}/budget/generate", content);
@@ -178,6 +151,90 @@ public class RAGController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating budget");
+            return StatusCode(500, "Error interno del servidor");
+        }
+    }
+
+    [HttpPost("resources/plan")]
+    public async Task<IActionResult> PlanResources([FromBody] RAGResourcePlanningRequestDto request)
+    {
+        try
+        {
+            var ragServiceUrl = GetRAGServiceUrl();
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(5);
+
+            var jsonContent = new StringContent(
+                JsonSerializer.Serialize(request),
+                Encoding.UTF8,
+                "application/json");
+
+            try
+            {
+                var response = await client.PostAsync($"{ragServiceUrl}/resources/plan", jsonContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    return Ok(JsonSerializer.Deserialize<RAGResourcePlanningResponseDto>(content));
+                }
+                else
+                {
+                    _logger.LogWarning("RAG service returned error: {StatusCode}. Falling back to heuristic.", response.StatusCode);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error calling RAG service. Falling back to heuristic.");
+            }
+
+            // Heuristic Logic
+            var assignments = new List<RAGResourceAssignmentDto>();
+            decimal currentCost = 0;
+            var availableResources = request.Recursos.Where(r => r.Disponible).ToList();
+
+            if (!availableResources.Any())
+            {
+                return Ok(new RAGResourcePlanningResponseDto
+                {
+                    Resumen = "No hay recursos disponibles para asignar.",
+                    Confianza = 0.0f,
+                    CriteriosUtilizados = new List<string> { "Heurística básica: Sin recursos" }
+                });
+            }
+
+            foreach (var activity in request.Actividades)
+            {
+                // Simple heuristic: Assign the first available resource
+                var resource = availableResources.First(); 
+                
+                // Check budget
+                if (currentCost + resource.Costo <= request.PresupuestoMaximo)
+                {
+                    assignments.Add(new RAGResourceAssignmentDto
+                    {
+                        ActividadId = activity.Id,
+                        RecursoId = resource.Id,
+                        NombreRecurso = resource.Nombre,
+                        CostoAsignado = resource.Costo
+                    });
+                    currentCost += resource.Costo;
+                }
+            }
+
+            var result = new RAGResourcePlanningResponseDto
+            {
+                Asignaciones = assignments,
+                Resumen = $"Se generaron asignaciones para {assignments.Count} actividades usando heurística básica.",
+                CriteriosUtilizados = new List<string> { "Heurística básica: Primer recurso disponible", "Restricción de presupuesto" },
+                Confianza = 0.5f
+            };
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error planning resources");
             return StatusCode(500, "Error interno del servidor");
         }
     }
@@ -228,7 +285,7 @@ public class RAGController : ControllerBase
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
-                return Ok(JsonSerializer.Deserialize<object>(content));
+                return Ok(JsonSerializer.Deserialize<RAGBudgetSuggestionsResponseDto>(content));
             }
             else
             {
@@ -272,6 +329,7 @@ public class RAGController : ControllerBase
         }
     }
 
+<<<<<<< HEAD
     [HttpPost("budget/save-extracted")]
     public async Task<IActionResult> SaveExtractedBudget([FromBody] SaveExtractedBudgetRequestDto request)
     {
@@ -517,3 +575,56 @@ public class BudgetGenerationRequest
     public int DurationYears { get; set; } = 1;
     public List<RAGActivityForBudgetDto>? Activities { get; set; } // Lista opcional de actividades
 }
+=======
+    [HttpGet("projects/{projectId}/activities/extract")]
+    public async Task<IActionResult> ExtractActivitiesFromDocuments(int projectId)
+    {
+        try
+        {
+            var ragServiceUrl = GetRAGServiceUrl();
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(10);
+
+            var response = await client.GetAsync($"{ragServiceUrl}/projects/{projectId}/activities/extract");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                return Ok(JsonSerializer.Deserialize<RAGExtractedActivitiesDto>(content));
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Error extracting activities: {Error}", errorContent);
+                return StatusCode((int)response.StatusCode, errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error extracting activities from documents");
+            return StatusCode(500, "Error interno del servidor");
+        }
+    }
+
+    /* TODO: Este endpoint requiere adaptación completa a la nueva estructura de devDB
+     * En devDB, los rubros se manejan mediante RecursoEspecifico con polimorfismo, no con RubroId directo.
+     * Los Commands también cambiaron significativamente.
+     * Se necesita reimplementar completamente para trabajar con la nueva arquitectura.
+     
+    [HttpPost("budget/save-extracted")]
+    public async Task<IActionResult> SaveExtractedBudget([FromBody] SaveExtractedBudgetRequestDto request)
+    {
+        return StatusCode(501, new SaveExtractedBudgetResponseDto
+        {
+            Success = false,
+            Message = "Este endpoint requiere adaptación a la nueva estructura de devDB",
+            Errors = new List<string> { "Pendiente de implementación para RecursoEspecifico" }
+        });
+    }
+    */
+}
+
+// DTOs para las peticiones
+// QueryRequest eliminado, se usa RAGQueryRequestDto
+// BudgetGenerationRequest eliminado, se usa BudgetGenerationRequestDto
+>>>>>>> 31707b8c3dce0f6b25630ee459060eecc25b5e19

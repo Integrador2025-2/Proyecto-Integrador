@@ -630,3 +630,53 @@ Responde SOLO con el JSON, sin texto adicional."""
                 e.doc,
                 e.pos
             )
+
+    async def extract_activities_from_documents(self, context: str, project_id: int) -> Dict[str, Any]:
+        """
+        Extrae todas las actividades mencionadas en los documentos del proyecto.
+        """
+        system_prompt = """Eres un experto en análisis de proyectos.
+Tu tarea es extraer TODAS las actividades mencionadas en los documentos del proyecto.
+
+IMPORTANTE:
+- Extrae cada actividad que encuentres en el texto.
+- Para cada actividad, captura: nombre, descripción, justificación (si existe), especificaciones técnicas (si existen).
+- Si se menciona duración o valores monetarios, inclúyelos.
+- NO inventes información que no esté en el texto.
+- NO te preocupes por objetivos, cadenas de valor o jerarquías complejas.
+- SOLO enfócate en listar las actividades encontradas.
+
+FORMATO DE RESPUESTA:
+Debes responder ÚNICAMENTE con un objeto JSON válido:
+{
+    "project_id": 123,
+    "activities": [
+        {
+            "name": "Nombre de la actividad",
+            "description": "Descripción de la actividad",
+            "justification": "Justificación si existe en el texto o null",
+            "technical_specifications": "Especificaciones técnicas si existen o null",
+            "duration_years": 1,
+            "unit_value": 0
+        }
+    ],
+    "total_activities": 0
+}
+"""
+        user_prompt = f"Extrae todas las actividades del proyecto (ID: {project_id}) basándote en el siguiente contexto:\n\n{context}"
+        
+        try:
+            if self.provider == "openai":
+                response_text = await self._generate_answer_openai(user_prompt, context, system_prompt)
+            else:
+                response_text = await self._generate_answer_gemini(user_prompt, context, system_prompt)
+            
+            result = self._parse_json_response(response_text)
+            # Asegurarse de que total_activities esté actualizado
+            if "activities" in result:
+                result["total_activities"] = len(result["activities"])
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error extrayendo actividades: {str(e)}")
+            return {"project_id": project_id, "activities": [], "total_activities": 0}

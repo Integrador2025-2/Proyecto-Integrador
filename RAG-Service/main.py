@@ -24,6 +24,7 @@ from models.schemas import (
     ResourcePlanRequest,
     ResourcePlanResponse,
     ResourceAssignment,
+    ExtractedActivities,
 )
 
 # Cargar variables de entorno
@@ -388,6 +389,18 @@ async def get_budget_suggestions(project_id: int, category: str = None):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error obteniendo sugerencias: {str(e)}")
+
+@app.get("/projects/{project_id}/activities/extract", response_model=ExtractedActivities)
+async def extract_activities_from_documents(project_id: int):
+    """
+    Extraer todas las actividades mencionadas en los documentos del proyecto.
+    No se preocupa por jerarquías, solo extrae la lista de actividades encontradas.
+    """
+    try:
+        result = await budget_automation.extract_activities_from_documents(project_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error extrayendo actividades: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(

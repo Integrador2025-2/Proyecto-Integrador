@@ -15,6 +15,7 @@ appsettings.json
 appsettings.*.json
 secrets.json
 .env
+!.env.example
 
 
 # Archivos binarios y temporales
