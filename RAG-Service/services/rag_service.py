@@ -1,8 +1,13 @@
 import os
 import uuid
 from typing import List, Dict, Any, Optional
-import chromadb
-from chromadb.config import Settings
+try:
+    import chromadb
+    from chromadb.config import Settings
+    CHROMADB_AVAILABLE = True
+except Exception as e:
+    CHROMADB_AVAILABLE = False
+    print(f"Warning: ChromaDB not available: {e}")
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from datetime import datetime
@@ -18,10 +23,28 @@ class RAGService:
     
     def __init__(self):
         # Inicializar ChromaDB
-        self.chroma_client = chromadb.PersistentClient(
-            path="./chroma_db",
-            settings=Settings(anonymized_telemetry=False)
-        )
+        if CHROMADB_AVAILABLE:
+            try:
+                self.chroma_client = chromadb.PersistentClient(
+                    path="./chroma_db",
+                    settings=Settings(anonymized_telemetry=False)
+                )
+                # Obtener o crear colección
+                try:
+                    self.collection = self.chroma_client.get_collection("project_documents")
+                except:
+                    self.collection = self.chroma_client.create_collection(
+                        name="project_documents",
+                        metadata={"description": "Documentos de proyectos para RAG"}
+                    )
+            except Exception as e:
+                print(f"Warning: ChromaDB initialization failed: {e}")
+                self.chroma_client = None
+                self.collection = None
+        else:
+            self.chroma_client = None
+            self.collection = None
+            print("Warning: Running without ChromaDB - vector search disabled")
         
         # Inicializar modelo de embeddings
         self.embedding_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
@@ -35,15 +58,6 @@ class RAGService:
             self.llm_service = None
             self.use_llm = False
             print(f"Advertencia: LLM no disponible. Usando modo básico. Error: {str(e)}")
-        
-        # Obtener o crear colección
-        try:
-            self.collection = self.chroma_client.get_collection("project_documents")
-        except:
-            self.collection = self.chroma_client.create_collection(
-                name="project_documents",
-                metadata={"description": "Documentos de proyectos para RAG"}
-            )
     
     async def add_document(self, content: str, metadata: Dict[str, Any]) -> str:
         """Agregar un documento a la base de datos vectorial"""

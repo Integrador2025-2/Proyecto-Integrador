@@ -1,0 +1,77 @@
+# Entornos virtuales de Python
+.env/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de entorno local
+.env
+.env.local
+.env.*.local
+
+# Bases de datos locales
+chroma_db/
+*.db
+*.sqlite
+*.sqlite3
+
+# Archivos subidos y generados localmente
+uploads/
+generated_budgets/
+*.pdf
+*.docx
+*.xlsx
+test_path.txt
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile
+Dockerfile.streamlit
+docker-compose.yml
+.dockerignore
+
+# Documentación y archivos de desarrollo (pero NO requirements.txt)
+README.md
+GEMINI_SETUP.md
+GUIA_EJECUCION.md
+PRESUPUESTO_EXTRACTION_GUIDE.md
+DOCKER_README.md
+DOCKER_SUMMARY.md
+QUICKSTART.md
+API_EXAMPLES.md
+DOCUMENTATION_INDEX.md
+
+# Testing y logs
+tests/
+*.log
+logs/
+
+# Archivos temporales
+*.tmp
+*.temp
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node modules (si hay frontend)
+node_modules/
+npm-debug.log

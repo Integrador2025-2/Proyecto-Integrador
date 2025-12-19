@@ -44,9 +44,17 @@ coverage.xml
 venv/
 venv/*         # añadido para cubrir casos donde la carpeta tiene archivos
 ENV/
+.env/
 env/
 env.bak/
 venv.bak/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+!.env.docker
+!.env.example
 
 # VS Code
 .vscode/

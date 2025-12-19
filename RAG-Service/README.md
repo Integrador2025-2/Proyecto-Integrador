@@ -2,6 +2,34 @@
 
 Servicio RAG (Retrieval-Augmented Generation) para automatización inteligente de presupuestos de proyectos de CTeI.
 
+## 🐳 Inicio Rápido con Docker (Recomendado)
+
+**¿Quieres ejecutar el servicio sin instalar dependencias?** Usa Docker:
+
+```bash
+# 1. Configurar variables de entorno
+cp .env.docker .env
+# Edita .env y agrega tu GEMINI_API_KEY
+
+# 2. Iniciar servicio
+docker-compose up -d
+
+# 3. Verificar que está funcionando
+curl http://localhost:8001/health
+
+# 4. Ver logs
+docker-compose logs -f
+```
+
+El servicio estará disponible en **http://localhost:8001**
+
+📖 **Documentación:**
+- API Docs: http://localhost:8001/docs
+- Guía Docker: [DOCKER_README.md](DOCKER_README.md)
+- Ejemplos: [API_EXAMPLES.md](API_EXAMPLES.md)
+
+---
+
 ## ✨ Características Principales
 
 ### Gestión de Documentos
@@ -63,18 +91,32 @@ LLM_TEMPERATURE=0.3
 
 ## 🏃 Ejecutar el Servicio
 
+### Opción 1: Con Docker (Recomendado) 🐳
+
+```bash
+# Usar script de ayuda (Windows)
+.\docker-manage.ps1 start
+
+# O usar script de ayuda (Linux/Mac)
+./docker-manage.sh start
+
+# O directamente con docker-compose
+docker-compose up -d
+```
+
+### Opción 2: Instalación Local
+
 ```bash
 # Método 1: Directo
 python main.py
 
 # Método 2: Con uvicorn (recomendado para desarrollo)
 uvicorn main:app --reload --port 8001 --host 0.0.0.0
-
-# Método 3: Con Docker
-docker-compose up rag-service
 ```
 
 El servicio estará disponible en: **http://localhost:8001**
+
+📖 Para más opciones de Docker, consulta: [DOCKER_README.md](DOCKER_README.md)
 
 ## 📚 API Endpoints
 
