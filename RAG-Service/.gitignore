@@ -49,22 +49,24 @@ env/
 env.bak/
 venv.bak/
 
-# Environment variables
+# Environment variables - ignore all .env files except examples
 .env
-.env.local
-.env.*.local
-!.env.docker
+.env*
+.env.*
+**/.env
+**/.env.*
+
+# Allow only example/template environment files
 !.env.example
+!.env.sample
+!.env.template
+!env.example
 
 # VS Code
 .vscode/
 
 # JetBrains IDEs
 .idea/
-
-# Environment variables
-.env
-.env.*.local
 
 # Logs and runtime files
 *.log
