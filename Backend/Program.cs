@@ -173,6 +173,27 @@ if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(goo
 // Add Authorization
 builder.Services.AddAuthorization();
 
+// ============================================
+// AGREGAR CORS - PERMITIR FRONTEND
+// ============================================
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(
+            "http://localhost:3000",      // Vite dev server
+            "http://localhost:3001",      // Vite dev server (puerto alternativo 2)
+            "http://localhost:5173",      // Vite dev server (puerto alternativo)
+            "https://localhost:3000",
+            "https://localhost:3001",
+            "https://localhost:5173"
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -196,6 +217,9 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+// Enable CORS for frontend before authentication/authorization
+app.UseCors("AllowFrontend");
 
 // Add Authentication and Authorization middleware
 app.UseAuthentication();
